@@ -1,4 +1,3 @@
-#![cfg_attr(test, feature(inclusive_range_syntax))]
 #![no_std]
 
 #[cfg(test)]
@@ -137,48 +136,20 @@ impl<'a, T> DerefMut for StackVec<'a, T> {
     }
 }
 
-// I could have alternatively in StackVec::into_iter, return
-// `self.storage.into_iter()`, or the default into_iter for
-// builtin arrays. This way I would not need a custom struct
-// and Iterator implementation.
-pub struct StackVecIterator<'a, T: 'a> {
-    stack_vec: &'a [T],
-    index: usize,
-}
-
-impl<'a, T> Iterator for StackVecIterator<'a, T> {
-    type Item = &'a T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.stack_vec.len() {
-            return None
-        }
-        let item = &(self.stack_vec[self.index]);
-        self.index = self.index + 1;
-        Some(item)
-    }
-}
-
 impl<'a, T: 'a> IntoIterator for StackVec<'a, T> {
     type Item = &'a T;
-    type IntoIter = StackVecIterator<'a, T>;
+    type IntoIter = slice::Iter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        StackVecIterator {
-            stack_vec: self.into_slice(),
-            index: 0,
-        }
+        self.storage.iter()
     }
 }
 
 impl<'a, T: 'a> IntoIterator for &'a StackVec<'a, T> {
     type Item = &'a T;
-    type IntoIter = StackVecIterator<'a, T>;
+    type IntoIter = slice::Iter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        StackVecIterator {
-            stack_vec: self.as_slice(),
-            index: 0,
-        }
+        self.storage.iter()
     }
 }
