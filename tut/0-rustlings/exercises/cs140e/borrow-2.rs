@@ -1,13 +1,11 @@
 // FIXME: Make me pass! Diff budget: 2 lines.
 
-// I AM NOT DONE
-
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct MyType(usize);
 
 fn borrow2() {
     let mut x = MyType(1);
-    let y = &x;
+    let y = &mut x;
 
     // Do not modify this line.
     y.0 = 2;

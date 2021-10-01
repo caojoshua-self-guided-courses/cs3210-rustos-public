@@ -1,10 +1,33 @@
 // FIXME: Make me pass! Diff budget: 30 lines.
 
-// I AM NOT DONE
-
 struct Builder {
     string: Option<String>,
     number: Option<usize>,
+}
+
+impl Builder {
+    fn default() -> Builder {
+        Builder{ string: None, number: None }
+    }
+
+    fn string<T: Into<String>>(&mut self, s: T) -> &mut Builder {
+        self.string = Some(s.into());
+        self
+    }
+
+    fn number(&mut self, n: usize) -> &mut Builder {
+        self.number = Some(n);
+        self
+    }
+
+    fn to_string(&self) -> String {
+        match (self.string.as_ref(), self.number) {
+            (Some(s), None) => String::from(s),
+            (None, Some(n)) => format!("{}", n),
+            (Some(s), Some(n)) => format!("{} {}", s, n),
+            _ => String::from("")
+        }
+    }
 }
 
 // Do not modify this function.

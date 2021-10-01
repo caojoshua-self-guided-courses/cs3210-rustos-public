@@ -1,6 +1,6 @@
 // FIXME: Make me compile! Diff budget: 2 lines.
 
-// I AM NOT DONE
+// This passes by itself. Maybe something to do with Rust versions. I'll just ignore.
 
 // Do not modify this definition.
 enum Duration {

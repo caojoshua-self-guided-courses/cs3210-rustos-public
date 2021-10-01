@@ -1,7 +1,5 @@
 // FIXME: Make me compile. Diff budget: 12 line additions and 2 characters.
 
-// I AM NOT DONE
-
 struct ErrorA;
 struct ErrorB;
 
@@ -19,7 +17,11 @@ fn do_b() -> Result<u32, ErrorB> {
 }
 
 fn do_both() -> Result<(u16, u32), Error> {
-    Ok((do_a(), do_b()))
+    match (do_a(), do_b()) {
+        (Ok(a), Ok(b)) => Ok((a, b)),
+        (Err(error), _) => Err(Error::A(error)),
+        (_, Err(error)) => Err(Error::B(error))
+    }
 }
 
 fn main() { }
