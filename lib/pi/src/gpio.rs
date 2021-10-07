@@ -52,6 +52,10 @@ states! {
     Uninitialized, Input, Output, Alt
 }
 
+fn get_register_index_and_offset(pin: u8, pins_per_register: u8) -> (usize, u8) {
+    ((pin / pins_per_register) as usize, pin % pins_per_register)
+}
+
 /// A GPIO pin in state `State`.
 ///
 /// The `State` generic always corresponds to an uninstantiatable type that is
@@ -103,7 +107,11 @@ impl Gpio<Uninitialized> {
     /// Enables the alternative function `function` for `self`. Consumes self
     /// and returns a `Gpio` structure in the `Alt` state.
     pub fn into_alt(self, function: Function) -> Gpio<Alt> {
-        unimplemented!()
+        let (register_index, mut register_offset) = get_register_index_and_offset(self.pin, 10);
+        register_offset *= 3;
+        let register = &mut self.registers.FSEL[register_index];
+        register.write(register.read() | ((function as u32) << register_offset));
+        self.transition()
     }
 
     /// Sets this pin to be an _output_ pin. Consumes self and returns a `Gpio`
@@ -122,12 +130,16 @@ impl Gpio<Uninitialized> {
 impl Gpio<Output> {
     /// Sets (turns on) the pin.
     pub fn set(&mut self) {
-        unimplemented!()
+        let (register_index, register_offset) = get_register_index_and_offset(self.pin, 32);
+        let register = &mut self.registers.SET[register_index];
+        register.write(1 << register_offset);
     }
 
     /// Clears (turns off) the pin.
     pub fn clear(&mut self) {
-        unimplemented!()
+        let (register_index, register_offset) = get_register_index_and_offset(self.pin, 32);
+        let register = &mut self.registers.CLR[register_index];
+        register.write(1 << register_offset);
     }
 }
 
@@ -135,6 +147,8 @@ impl Gpio<Input> {
     /// Reads the pin's value. Returns `true` if the level is high and `false`
     /// if the level is low.
     pub fn level(&mut self) -> bool {
-        unimplemented!()
+        let (register_index, register_offset) = get_register_index_and_offset(self.pin, 32);
+        let register = &mut self.registers.LEV[register_index];
+        return register.read() >> register_offset | 0x01 == 0x01;
     }
 }
