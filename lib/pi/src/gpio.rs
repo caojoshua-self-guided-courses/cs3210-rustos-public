@@ -110,7 +110,7 @@ impl Gpio<Uninitialized> {
         let (register_index, mut register_offset) = get_register_index_and_offset(self.pin, 10);
         register_offset *= 3;
         let register = &mut self.registers.FSEL[register_index];
-        register.write(register.read() | ((function as u32) << register_offset));
+        register.or_mask((function as u32) << register_offset);
         self.transition()
     }
 
@@ -149,6 +149,6 @@ impl Gpio<Input> {
     pub fn level(&mut self) -> bool {
         let (register_index, register_offset) = get_register_index_and_offset(self.pin, 32);
         let register = &mut self.registers.LEV[register_index];
-        return register.read() >> register_offset | 0x01 == 0x01;
+        register.read() >> register_offset | 0x01 == 0x01
     }
 }

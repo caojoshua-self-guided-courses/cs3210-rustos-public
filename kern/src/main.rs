@@ -21,33 +21,11 @@ use console::kprintln;
 
 unsafe fn kmain() -> ! {
     // FIXME: Start the shell.
-    let mut output = [
-        pi::gpio::Gpio::new(5).into_output(),
-        pi::gpio::Gpio::new(6).into_output(),
-        pi::gpio::Gpio::new(13).into_output(),
-        pi::gpio::Gpio::new(16).into_output(),
-        pi::gpio::Gpio::new(19).into_output(),
-        pi::gpio::Gpio::new(26).into_output(),
-    ];
-    let num_outputs = output.len();
-
-    output[0].set();
-    output[1].set();
-    pi::timer::spin_sleep(core::time::Duration::from_micros(200000));
-
-    let mut a = 0;
-    let mut b = 1;
+    let mut uart = pi::uart::MiniUart::new();
     loop {
-        output[a].clear();
-        a = a + 1;
-        b = b + 1;
-        if a == num_outputs {
-            a = 0;
-        } else if b == num_outputs {
-            b = 0;
-        }
-        output[b].set();
-
-        pi::timer::spin_sleep(core::time::Duration::from_micros(200000));
+        let c = uart.read_byte();
+        uart.write_byte(c);
+        uart.write_byte(b'<');
+        uart.write_byte(b'-');
     }
 }
