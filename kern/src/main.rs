@@ -24,8 +24,6 @@ unsafe fn kmain() -> ! {
     let mut uart = pi::uart::MiniUart::new();
     loop {
         let c = uart.read_byte();
-        uart.write_byte(c);
-        uart.write_byte(b'<');
-        uart.write_byte(b'-');
+        kprintln!("{} <-", char::from(c));
     }
 }
