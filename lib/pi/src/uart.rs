@@ -178,9 +178,10 @@ mod uart_io {
                 }
                 _ => (),
             }
-            let mut read_bytes = 1;
+
+            let mut read_bytes = 0;
             while self.has_byte() && read_bytes < buf.len() {
-                self.read_byte();
+                buf[read_bytes] = self.read_byte();
                 read_bytes += 1;
             }
             Ok(read_bytes)

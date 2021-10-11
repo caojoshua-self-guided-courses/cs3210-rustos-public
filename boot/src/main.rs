@@ -8,7 +8,9 @@
 mod init;
 
 use xmodem::Xmodem;
+use core::fmt::Write;
 use core::time::Duration;
+use shim::io;
 use pi;
 
 /// Start address of the binary to load and of the bootloader.
@@ -29,6 +31,22 @@ unsafe fn jump_to(addr: *mut u8) -> ! {
     }
 }
 
-fn kmain() -> ! {
-    // FIXME: Implement the bootloader.
+unsafe fn kmain() -> ! {
+    loop {
+        let mut uart = pi::uart::MiniUart::new();
+        uart.set_read_timeout(Duration::from_millis(750));
+
+        let binary = core::slice::from_raw_parts_mut(BINARY_START, MAX_BINARY_SIZE);
+
+        match Xmodem::receive(uart, binary) {
+            Ok(_) => jump_to(BINARY_START),
+            Err(error) => match error.kind() {
+                io::ErrorKind::TimedOut => (),
+                _ => {
+                    let mut uart = pi::uart::MiniUart::new();
+                    uart.write_str("error receiving over uart\n").unwrap();
+                }
+            }
+        }
+    }
 }

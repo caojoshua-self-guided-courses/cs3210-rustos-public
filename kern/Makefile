@@ -26,7 +26,7 @@ qemu: build
 
 transmit: build
 	@echo "+ Transmitting build/$(KERN).bin to $(TTY_PATH)"
-	ttywrite -i build/$(KERN).bin $(TTY_PATH)
+	sudo ttywrite -i build/$(KERN).bin $(TTY_PATH)
 
 objdump: build
 	cargo objdump -- -disassemble -no-show-raw-insn -print-imm-hex build/$(KERN).elf
