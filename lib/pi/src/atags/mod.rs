@@ -2,6 +2,7 @@ mod atag;
 mod raw;
 
 pub use self::atag::*;
+use core::convert::From;
 
 /// The address at which the firmware loads the ATAGS.
 const ATAG_BASE: usize = 0x100;
@@ -23,9 +24,17 @@ impl Atags {
 impl Iterator for Atags {
     type Item = Atag;
 
-    // FIXME: Implement `Iterator` for `Atags`
     fn next(&mut self) -> Option<Atag> {
-        unimplemented!()
+        match self.ptr {
+            Some(raw_atag) => {
+                match raw_atag.next() {
+                    Some(next_atag) => self.ptr = Some(next_atag),
+                    None => self.ptr = None,
+                }
+                Some(Atag::from(raw_atag))
+            }
+            None => None,
+        }
     }
 }
 
