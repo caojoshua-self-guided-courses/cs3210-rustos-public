@@ -34,8 +34,8 @@ qemu-asm: build
 
 transmit: build
 	@echo "+ Transmitting build/$(KERN).bin to $(TTY_PATH)"
-	ttywrite -i build/$(KERN).bin $(TTY_PATH)
-	screen $(TTY_PATH) 115200
+	sudo ttywrite -i build/$(KERN).bin $(TTY_PATH)
+	sudo screen $(TTY_PATH) 115200
 
 objdump: build
 	cargo objdump -- -disassemble -no-show-raw-insn -print-imm-hex build/$(KERN).elf
