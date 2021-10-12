@@ -24,6 +24,8 @@ use console::kprintln;
 use allocator::Allocator;
 use fs::FileSystem;
 
+use allocator::memory_map;
+
 #[cfg_attr(not(test), global_allocator)]
 pub static ALLOCATOR: Allocator = Allocator::uninitialized();
 pub static FILESYSTEM: FileSystem = FileSystem::uninitialized();
@@ -35,9 +37,8 @@ fn kmain() -> ! {
     }
 
     for _ in 0 .. 3 {
-        for atag in pi::atags::Atags::get() {
-            kprintln!("{:#?}", atag);
-        }
+        let (start, end) = memory_map().expect("failed to find memory map");
+        kprintln!("start, end : {}, {}", start, end);
         pi::timer::spin_sleep(core::time::Duration::from_secs(1));
     }
 

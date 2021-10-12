@@ -75,10 +75,20 @@ extern "C" {
 ///
 /// This function is expected to return `Some` under all normal cirumstances.
 pub fn memory_map() -> Option<(usize, usize)> {
-    let page_size = 1 << 12;
     let binary_end = unsafe { (&__text_end as *const u8) as usize };
+    let mut start = binary_end;
 
-    unimplemented!("memory map")
+    for atag in Atags::get() {
+        match atag {
+            Atag::Mem(mem) => {
+                start = mem.start as usize;
+                break;
+            }
+            _ => (),
+        }
+    }
+
+    Some((start, binary_end))
 }
 
 impl fmt::Debug for Allocator {
