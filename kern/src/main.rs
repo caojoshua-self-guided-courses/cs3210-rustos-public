@@ -30,8 +30,15 @@ pub static FILESYSTEM: FileSystem = FileSystem::uninitialized();
 
 fn kmain() -> ! {
     unsafe {
-        ALLOCATOR.initialize();
-        FILESYSTEM.initialize();
+        // ALLOCATOR.initialize();
+        // FILESYSTEM.initialize();
+    }
+
+    for _ in 0 .. 3 {
+        for atag in pi::atags::Atags::get() {
+            kprintln!("{:#?}", atag);
+        }
+        pi::timer::spin_sleep(core::time::Duration::from_secs(1));
     }
 
     kprintln!("Welcome to cs3210!");
