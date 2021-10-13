@@ -76,19 +76,21 @@ extern "C" {
 /// This function is expected to return `Some` under all normal cirumstances.
 pub fn memory_map() -> Option<(usize, usize)> {
     let binary_end = unsafe { (&__text_end as *const u8) as usize };
-    let mut start = binary_end;
+    let mut end = binary_end;
 
     for atag in Atags::get() {
         match atag {
             Atag::Mem(mem) => {
-                start = mem.start as usize;
+                end = mem.size as usize;
                 break;
             }
             _ => (),
         }
     }
 
-    Some((start, binary_end))
+    // The pool of free memory after the kernel binary until the end
+    // of physical memory.
+    Some((binary_end, end))
 }
 
 impl fmt::Debug for Allocator {
