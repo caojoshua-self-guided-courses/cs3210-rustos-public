@@ -24,7 +24,7 @@ use console::kprintln;
 use allocator::Allocator;
 use fs::FileSystem;
 
-use allocator::memory_map;
+use alloc::vec::Vec;
 
 #[cfg_attr(not(test), global_allocator)]
 pub static ALLOCATOR: Allocator = Allocator::uninitialized();
@@ -32,14 +32,15 @@ pub static FILESYSTEM: FileSystem = FileSystem::uninitialized();
 
 fn kmain() -> ! {
     unsafe {
-        // ALLOCATOR.initialize();
+        ALLOCATOR.initialize();
         // FILESYSTEM.initialize();
     }
 
-    for _ in 0 .. 3 {
-        let (start, end) = memory_map().expect("failed to find memory map");
-        kprintln!("start, end : {}, {}", start, end);
-        pi::timer::spin_sleep(core::time::Duration::from_secs(1));
+    pi::timer::spin_sleep(core::time::Duration::from_secs(2));
+    let mut v = Vec::new();
+    for i in 0..50 {
+        v.push(i);
+        kprintln!("{:?}", v);
     }
 
     kprintln!("Welcome to cs3210!");

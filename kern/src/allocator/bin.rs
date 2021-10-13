@@ -15,15 +15,34 @@ use crate::allocator::LocalAlloc;
 ///   map_to_bin(size) -> k
 ///   
 
+const num_bins: usize = 30;
+
 pub struct Allocator {
-    // FIXME: Add the necessary fields.
+    /// `bins` is a array of `num_bins` LinkedLists. `bins[k]`
+    /// contains allocations of size 2^(k+3), allowing allocations
+    /// of max size 2^32.
+    bins: [LinkedList; num_bins],
 }
 
 impl Allocator {
     /// Creates a new bin allocator that will allocate memory from the region
     /// starting at address `start` and ending at address `end`.
     pub fn new(start: usize, end: usize) -> Allocator {
-        unimplemented!("bin allocator")
+        let bin_size = (end - start) / num_bins;
+        let mut bins = [LinkedList::new(); num_bins];
+        // TODO: compute `addr` through iterations
+        let mut addr = start;
+
+        for bin_idx in 0 .. bin_size {
+            let site_size = (2 as usize).pow((bin_idx + 3) as u32);
+            let bin_num_sites = bin_size / site_size; 
+            for _ in 0 .. bin_num_sites {
+                unsafe { bins[bin_idx].push(addr as *mut usize); }
+                addr += site_size;
+            }
+        }
+
+        Allocator { bins }
     }
 }
 
@@ -50,7 +69,11 @@ impl LocalAlloc for Allocator {
     /// or `layout` does not meet this allocator's
     /// size or alignment constraints.
     unsafe fn alloc(&mut self, layout: Layout) -> *mut u8 {
-        unimplemented!("bin allocator")
+        if layout.size() <= 0 || !is_power_of_two(layout.align()) {
+            return ptr::null_mut();
+        }
+        
+        ptr::null_mut()
     }
 
     /// Deallocates the memory referenced by `ptr`.
