@@ -398,6 +398,20 @@ fn test_mock4_files_recursive() {
     assert_hash_eq!("mock 4 file hashes", hash, hash_for!("files-2-3-4"));
 }
 
+#[test]
+fn test_timestamp() {
+    let timestamp = vfat::Timestamp {
+        time: vfat::Time{ 0: 0b0110101001001111 },
+        date: vfat::Date{ 0: 0b0101001101100111 },
+    };
+    assert_eq!(timestamp.year(), 2021);
+    assert_eq!(timestamp.month(), 11);
+    assert_eq!(timestamp.day(), 7);
+    assert_eq!(timestamp.hour(), 13);
+    assert_eq!(timestamp.minute(), 18);
+    assert_eq!(timestamp.second(), 30);
+}
+
 struct Shuffle<T: BlockDevice> {
     device: T,
     swap_address: u64,
