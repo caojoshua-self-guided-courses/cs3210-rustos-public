@@ -9,7 +9,7 @@ use crate::vfat::Error;
 pub struct BiosParameterBlock {
     eb_xx_90: [u8; 3],
     oem_identifier: u64,
-    bytes_per_sector: u16,
+    pub bytes_per_sector: u16,
     sectors_per_cluster: u8,
     num_reserved_sectors: u16,
     num_fats: u8,

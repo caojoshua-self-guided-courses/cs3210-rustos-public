@@ -39,7 +39,41 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
     where
         T: BlockDevice + 'static,
     {
-        unimplemented!("VFat::from()")
+        let mbr = MasterBootRecord::from(&mut device)?;
+
+        let mut fat_partition_entry = None;
+        for partition_entry in &mbr.partition_table {
+            if partition_entry.partition_type == 0xB ||
+                partition_entry.partition_type == 0xC {
+                fat_partition_entry = Some(partition_entry);
+            }
+        }
+
+        if fat_partition_entry.is_none() {
+            return Err(Error::NotFound);
+        }
+        let fat_partition_entry = fat_partition_entry.unwrap();
+
+        let ebpb = BiosParameterBlock::from(&mut device, fat_partition_entry.relative_sector as u64)?;
+
+        let partition = Partition {
+            start: fat_partition_entry.relative_sector as u64,
+            num_sectors: fat_partition_entry.total_sectors as u64,
+            sector_size: ebpb.bytes_per_sector as u64,
+        };
+        let cached_partition = CachedPartition::new(device, partition);
+
+        let vfat = VFat {
+            phantom: PhantomData,
+            device: cached_partition,
+            bytes_per_sector: 0,
+            sectors_per_cluster: 0,
+            sectors_per_fat: 0,
+            fat_start_sector: 0,
+            data_start_sector: 0,
+            rootdir_cluster: Cluster::from(0),
+        };
+        Ok(VFatHandle::new(vfat))
     }
 
     // TODO: The following methods may be useful here:
