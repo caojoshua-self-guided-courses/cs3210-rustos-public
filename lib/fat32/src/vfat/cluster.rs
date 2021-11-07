@@ -1,5 +1,5 @@
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Copy, Clone, Hash)]
-pub struct Cluster(u32);
+pub struct Cluster(pub u32);
 
 impl From<u32> for Cluster {
     fn from(raw_num: u32) -> Cluster {

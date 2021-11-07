@@ -76,30 +76,59 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         Ok(VFatHandle::new(vfat))
     }
 
-    // TODO: The following methods may be useful here:
-    //
     //  * A method to read from an offset of a cluster into a buffer.
-    //
-    //    fn read_cluster(
-    //        &mut self,
-    //        cluster: Cluster,
-    //        offset: usize,
-    //        buf: &mut [u8]
-    //    ) -> io::Result<usize>;
-    //
+    //  TODO: I'm supposed to use fat_entry
+    fn read_cluster(
+        &mut self,
+        cluster: Cluster,
+        offset: usize,
+        buf: &mut Vec<u8>
+    ) -> io::Result<usize> {
+        if offset >= (self.bytes_per_sector * (self.sectors_per_cluster as u16)) as usize {
+            return Ok(0);
+        }
+
+        for i in 0..self.sectors_per_cluster {
+            // let slice = &mut buf[(i as u16 * self.bytes_per_sector) as usize..];
+            let cluster_sector_number = self.data_start_sector + ((cluster.0 + i as u32) as u64);
+            self.device.read_all_sector(cluster_sector_number, buf)?;
+        }
+
+        Ok(buf.len())
+    }
+
     //  * A method to read all of the clusters chained from a starting cluster
     //    into a vector.
-    //
-    //    fn read_chain(
-    //        &mut self,
-    //        start: Cluster,
-    //        buf: &mut Vec<u8>
-    //    ) -> io::Result<usize>;
-    //
+   fn read_chain(
+       &mut self,
+       start: Cluster,
+       buf: &mut Vec<u8>
+   ) -> io::Result<usize> {
+        let mut cluster = start;
+        loop {
+            // Need helper to get raw cluster sector number
+            self.read_cluster(cluster, 0, buf);
+
+            let fat_entry = match self.fat_entry(cluster) {
+                Ok(fat_entry) => fat_entry,
+                Err(_) => return Ok(buf.len()),
+            };
+
+            // TODO: should we return error if fat_entry status is
+            // neither Data or Eoc?
+            cluster = match fat_entry.status() {
+                Status::Data(cluster) => cluster,
+                _ => return Ok(buf.len()),
+            };
+        };
+   }
+
     //  * A method to return a reference to a `FatEntry` for a cluster where the
     //    reference points directly into a cached sector.
-    //
-    //    fn fat_entry(&mut self, cluster: Cluster) -> io::Result<&FatEntry>;
+    // fn fat_entry(&mut self, cluster: Cluster) -> io::Result<&FatEntry> {
+    fn fat_entry(&mut self, cluster: Cluster) -> io::Result<FatEntry> {
+        Ok(FatEntry{0: self.fat_start_sector as u32 + cluster.0})
+    }
 }
 
 impl<'a, HANDLE: VFatHandle> FileSystem for &'a HANDLE {
