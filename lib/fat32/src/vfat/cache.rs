@@ -76,6 +76,23 @@ impl CachedPartition {
         Some(physical_sector)
     }
 
+    fn get_cache_entry(&mut self, sector: u64) -> io::Result<(u64, &mut CacheEntry)> {
+        let physical_sector = match self.virtual_to_physical(sector) {
+            Some(physical_partiton) => physical_partiton,
+            None => return Err(io::Error::new(io::ErrorKind::Other, "virtual sectors could not be mapped to physical sector")),
+        };
+
+        if self.cache.get(&physical_sector).is_none() {
+            let mut bytes = Vec::new();
+            for _ in 0..self.factor() {
+                self.read_all_sector(sector, &mut bytes)?;
+            }
+            self.cache.insert(physical_sector, CacheEntry{ data: bytes, dirty: false});
+        }
+
+        Ok((physical_sector, self.cache.get_mut(&physical_sector).unwrap()))
+    }
+
     /// Returns a mutable reference to the cached sector `sector`. If the sector
     /// is not already cached, the sector is first read from the disk.
     ///
@@ -87,7 +104,9 @@ impl CachedPartition {
     ///
     /// Returns an error if there is an error reading the sector from the disk.
     pub fn get_mut(&mut self, sector: u64) -> io::Result<&mut [u8]> {
-        unimplemented!("CachedPartition::get_mut()")
+        let (physical_sector, cache_entry) = self.get_cache_entry(sector)?;
+        cache_entry.dirty = true;
+        Ok(cache_entry.data.as_mut_slice())
     }
 
     /// Returns a reference to the cached sector `sector`. If the sector is not
@@ -97,7 +116,8 @@ impl CachedPartition {
     ///
     /// Returns an error if there is an error reading the sector from the disk.
     pub fn get(&mut self, sector: u64) -> io::Result<&[u8]> {
-        unimplemented!("CachedPartition::get()")
+        let (physical_sector, cache_entry) = self.get_cache_entry(sector)?;
+        Ok(cache_entry.data.as_slice())
     }
 }
 
@@ -105,15 +125,23 @@ impl CachedPartition {
 // `write_sector` methods should only read/write from/to cached sectors.
 impl BlockDevice for CachedPartition {
     fn sector_size(&self) -> u64 {
-        unimplemented!()
+        self.partition.sector_size * self.factor()
     }
 
     fn read_sector(&mut self, sector: u64, buf: &mut [u8]) -> io::Result<usize> {
-        unimplemented!()
+        match self.cache.get(&sector) {
+            Some(cache_entry) => {
+                buf.copy_from_slice(cache_entry.data.as_slice());
+                Ok(buf.len())
+            },
+            // Am I supposed to move this into cache and then read?
+            None => Ok(0)
+        }
     }
 
     fn write_sector(&mut self, sector: u64, buf: &[u8]) -> io::Result<usize> {
-        unimplemented!()
+        self.cache.insert(sector, CacheEntry{ data: Vec::from(buf), dirty: true });
+        Ok(self.cache.get(&sector).unwrap().data.len())
     }
 }
 
