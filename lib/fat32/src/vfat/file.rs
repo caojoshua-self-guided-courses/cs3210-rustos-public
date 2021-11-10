@@ -5,13 +5,38 @@ use shim::io::{self, SeekFrom};
 use crate::traits;
 use crate::vfat::{Cluster, Metadata, VFatHandle};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct File<HANDLE: VFatHandle> {
     pub vfat: HANDLE,
     // FIXME: Fill me in.
 }
 
 // FIXME: Implement `traits::File` (and its supertraits) for `File`.
+impl<HANDLE: VFatHandle> traits::File for File<HANDLE> {
+    fn sync(&mut self) -> io::Result<()> {
+        unimplemented!("File::sync")
+    }
+
+    fn size(&self) -> u64 {
+        unimplemented!("File::size")
+    }
+}
+
+impl<HANDLE: VFatHandle> io::Read for File<HANDLE> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        unimplemented!("File::read")
+    }
+}
+
+impl<HANDLE: VFatHandle> io::Write for File<HANDLE> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        unimplemented!("File::write")
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        unimplemented!("File::flush")
+    }
+}
 
 impl<HANDLE: VFatHandle> io::Seek for File<HANDLE> {
     /// Seek to offset `pos` in the file.

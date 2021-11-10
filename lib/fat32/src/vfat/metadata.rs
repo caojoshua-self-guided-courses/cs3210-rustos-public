@@ -7,17 +7,17 @@ use crate::traits;
 /// A date as represented in FAT32 on-disk structures.
 #[repr(C, packed)]
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Date(u16);
+pub struct Date(pub u16);
 
 /// Time as represented in FAT32 on-disk structures.
 #[repr(C, packed)]
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Time(u16);
+pub struct Time(pub u16);
 
 /// File attributes as represented in FAT32 on-disk structures.
 #[repr(C, packed)]
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Attributes(u8);
+pub struct Attributes(pub u8);
 
 /// A structure containing a date and time.
 #[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
@@ -44,11 +44,11 @@ pub struct Metadata {
 
 impl traits::Timestamp for Timestamp {
     fn year(&self) -> usize {
-        (self.date.0 & (0b1111111 << 9)) as usize
+        (self.date.0 >> 9 & 0b1111111) as usize + 1980
     }
 
     fn month(&self) -> u8 {
-        (self.date.0 & (0b1111 << 5)) as u8
+        (self.date.0 >> 5 & 0b1111) as u8
     }
 
     fn day(&self) -> u8 {
@@ -56,11 +56,11 @@ impl traits::Timestamp for Timestamp {
     }
 
     fn hour(&self) -> u8 {
-        (self.time.0 & (0b11111 << 11)) as u8
+        (self.time.0 >> 11 & 0b11111) as u8
     }
 
     fn minute(&self) -> u8 {
-        (self.time.0 & (0b1111111 << 5)) as u8
+        (self.time.0 >> 5 & 0b111111) as u8
     }
 
     fn second(&self) -> u8 {

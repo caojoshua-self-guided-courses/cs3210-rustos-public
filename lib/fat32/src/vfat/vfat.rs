@@ -12,7 +12,7 @@ use shim::path::Path;
 
 use crate::mbr::MasterBootRecord;
 use crate::traits::{BlockDevice, FileSystem};
-use crate::util::SliceExt;
+use crate::util::{SliceExt, VecExt};
 use crate::vfat::{BiosParameterBlock, CachedPartition, Partition};
 use crate::vfat::{Cluster, Dir, Entry, Error, FatEntry, File, Status};
 
@@ -43,8 +43,7 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
 
         let mut fat_partition_entry = None;
         for partition_entry in &mbr.partition_table {
-            if partition_entry.partition_type == 0xB ||
-                partition_entry.partition_type == 0xC {
+            if partition_entry.partition_type == 0xB || partition_entry.partition_type == 0xC {
                 fat_partition_entry = Some(partition_entry);
             }
         }
@@ -54,7 +53,8 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         }
         let fat_partition_entry = fat_partition_entry.unwrap();
 
-        let ebpb = BiosParameterBlock::from(&mut device, fat_partition_entry.relative_sector as u64)?;
+        let ebpb =
+            BiosParameterBlock::from(&mut device, fat_partition_entry.relative_sector as u64)?;
 
         let partition = Partition {
             start: fat_partition_entry.relative_sector as u64,
@@ -82,16 +82,15 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         &mut self,
         cluster: Cluster,
         offset: usize,
-        buf: &mut Vec<u8>
+        buf: &mut Vec<u8>,
     ) -> io::Result<usize> {
         if offset >= (self.bytes_per_sector * (self.sectors_per_cluster as u16)) as usize {
             return Ok(0);
         }
 
         for i in 0..self.sectors_per_cluster {
-            // let slice = &mut buf[(i as u16 * self.bytes_per_sector) as usize..];
-            let cluster_sector_number = self.data_start_sector + ((cluster.0 + i as u32) as u64);
-            self.device.read_all_sector(cluster_sector_number, buf)?;
+            self.device
+                .read_all_sector(self.cluster_raw_sector(Cluster{ 0: cluster.0 + i as u32 }), buf)?;
         }
 
         Ok(buf.len())
@@ -99,20 +98,11 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
 
     //  * A method to read all of the clusters chained from a starting cluster
     //    into a vector.
-   fn read_chain(
-       &mut self,
-       start: Cluster,
-       buf: &mut Vec<u8>
-   ) -> io::Result<usize> {
+    pub fn read_chain(&mut self, start: Cluster, buf: &mut Vec<u8>) -> io::Result<usize> {
         let mut cluster = start;
         loop {
-            // Need helper to get raw cluster sector number
-            self.read_cluster(cluster, 0, buf);
-
-            let fat_entry = match self.fat_entry(cluster) {
-                Ok(fat_entry) => fat_entry,
-                Err(_) => return Ok(buf.len()),
-            };
+            self.read_cluster(cluster, 0, buf)?;
+            let fat_entry = self.fat_entry(cluster)?;
 
             // TODO: should we return error if fat_entry status is
             // neither Data or Eoc?
@@ -120,14 +110,36 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
                 Status::Data(cluster) => cluster,
                 _ => return Ok(buf.len()),
             };
-        };
-   }
+        }
+    }
 
     //  * A method to return a reference to a `FatEntry` for a cluster where the
     //    reference points directly into a cached sector.
     // fn fat_entry(&mut self, cluster: Cluster) -> io::Result<&FatEntry> {
-    fn fat_entry(&mut self, cluster: Cluster) -> io::Result<FatEntry> {
-        Ok(FatEntry{0: self.fat_start_sector as u32 + cluster.0})
+    pub fn fat_entry(&mut self, cluster: Cluster) -> io::Result<FatEntry> {
+        let bytes_offset = cluster.0 * size_of::<FatEntry>() as u32;
+        let sector = self.fat_start_sector + (bytes_offset / self.bytes_per_sector as u32) as u64;
+        let offset = bytes_offset % self.bytes_per_sector as u32;
+
+        let mut bytes: Vec<u8> = Vec::new();
+        self.device.read_all_sector(sector, &mut bytes)?;
+        let bytes: Vec<u32> = unsafe { bytes.cast() };
+
+        Ok(FatEntry { 0: bytes[offset as usize] })
+    }
+
+    // pub fn cluster(&mut self, fat_entry: FatEntry) -> Cluster {
+    //     Cluster {0: self.data_start_sector + fat_entry.0 }
+
+    // }
+
+    pub fn cluster_raw_sector(&self, cluster: Cluster) -> u64 {
+        // data sector starts with cluster 2
+        self.data_start_sector + cluster.0 as u64 - 2
+    }
+
+    pub fn bytes_per_cluster(&self) -> usize {
+        (self.sectors_per_cluster as u16 * self.bytes_per_sector) as usize
     }
 }
 
