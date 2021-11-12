@@ -77,7 +77,8 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
     }
 
     //  * A method to read from an offset of a cluster into a buffer.
-    //  TODO: I'm supposed to use fat_entry
+    //  TODO: deal with offsets
+    //  TODO: make code cleaner with helpers for common logic
     fn read_cluster(
         &mut self,
         cluster: Cluster,
@@ -96,6 +97,25 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         Ok(buf.len())
     }
 
+    //  * A method to write from a buffer into a cluster from an offset
+    fn write_cluster(
+        &mut self,
+        cluster: Cluster,
+        offset: usize,
+        buf: &[u8],
+    ) -> io::Result<usize> {
+        if offset >= (self.bytes_per_sector * (self.sectors_per_cluster as u16)) as usize {
+            return Ok(0);
+        }
+
+        let mut bytes_written = 0;
+        for i in 0..self.sectors_per_cluster {
+            bytes_written += self.device
+                .write_sector(self.cluster_raw_sector(Cluster{ 0: cluster.0 + i as u32 }), buf)?;
+        }
+
+        Ok(bytes_written)
+    }
     //  * A method to read all of the clusters chained from a starting cluster
     //    into a vector.
     pub fn read_chain(&mut self, start: Cluster, buf: &mut Vec<u8>) -> io::Result<usize> {
@@ -104,11 +124,25 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
             self.read_cluster(cluster, 0, buf)?;
             let fat_entry = self.fat_entry(cluster)?;
 
-            // TODO: should we return error if fat_entry status is
-            // neither Data or Eoc?
             cluster = match fat_entry.status() {
                 Status::Data(cluster) => cluster,
                 _ => return Ok(buf.len()),
+            };
+        }
+    }
+
+    //  * A method to write all the contents of buf into all of the clusters chained
+    //  from a starting cluster.
+    pub fn write_chain(&mut self, start: Cluster, buf: &[u8]) -> io::Result<usize> {
+        let mut cluster = start;
+        let mut bytes_written = 0;
+        loop {
+            bytes_written += self.write_cluster(cluster, 0, buf)?;
+            let fat_entry = self.fat_entry(cluster)?;
+
+            cluster = match fat_entry.status() {
+                Status::Data(cluster) => cluster,
+                _ => return Ok(bytes_written),
             };
         }
     }

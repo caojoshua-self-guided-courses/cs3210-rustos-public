@@ -3,6 +3,7 @@ use core::fmt;
 use alloc::string::String;
 
 use crate::traits;
+use crate::vfat::dir::VFatRegularDirEntry;
 
 /// A date as represented in FAT32 on-disk structures.
 #[repr(C, packed)]
@@ -27,19 +28,14 @@ pub struct Timestamp {
 }
 
 /// Metadata for a directory entry.
+/// TODO: actually use this. this shouldn't directly map to disk, and should
+/// be used for convenience
 #[derive(Default, Debug, Clone)]
 pub struct Metadata {
-    name: [u8; 8],
-    extension: [u8; 3],
     attributes: Attributes,
-    windows_nt_reserved: u8,
-    creation_time_tenth_seconds: u8,
     create_timestamp: Timestamp,
     last_accessed_date: Date,
-    first_cluster_high_16: u16,
     last_modification_timestamp: Timestamp,
-    first_cluster_low_16: u16,
-    size: u32,
 }
 
 impl traits::Timestamp for Timestamp {
@@ -65,6 +61,17 @@ impl traits::Timestamp for Timestamp {
 
     fn second(&self) -> u8 {
         (self.time.0 & 0b11111) as u8 * 2
+    }
+}
+
+impl Metadata {
+    pub fn from(dir_entry: VFatRegularDirEntry) -> Metadata {
+        Metadata {
+            attributes: dir_entry.attributes,
+            create_timestamp: dir_entry.create_timestamp,
+            last_accessed_date: dir_entry.last_accessed_date,
+            last_modification_timestamp: dir_entry.last_modification_timestamp,
+        }
     }
 }
 
@@ -97,6 +104,6 @@ impl traits::Metadata for Metadata {
 
 impl fmt::Display for Metadata {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}.{:?}", self.name, self.extension)
+        write!(f, "{:?}", self)
     }
 }

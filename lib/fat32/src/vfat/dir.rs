@@ -29,14 +29,14 @@ pub struct Dir<HANDLE: VFatHandle> {
 pub struct VFatRegularDirEntry {
     name: [u8; 8],
     extension: [u8; 3],
-    attributes: Attributes,
+    pub attributes: Attributes,
     windows_nt_reserved: u8,
-    creation_time_tenth_seconds: u8,
-    create_timestamp: Timestamp,
-    last_accessed_date: Date,
-    first_cluster_high_16: u16,
-    last_modification_timestamp: Timestamp,
-    first_cluster_low_16: u16,
+    pub creation_time_tenth_seconds: u8,
+    pub create_timestamp: Timestamp,
+    pub last_accessed_date: Date,
+    pub first_cluster_high_16: u16,
+    pub last_modification_timestamp: Timestamp,
+    pub first_cluster_low_16: u16,
     size: u32,
 }
 
@@ -216,6 +216,11 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
             } else {
                 Entry::File(File {
                     vfat: self.vfat.clone(),
+                    cluster: Cluster { 0: entry_cluster },
+                    name,
+                    size: regular.size as u64,
+                    seek_pos: 0,
+                    metadata: Metadata::from(regular),
                 })
             });
         }
