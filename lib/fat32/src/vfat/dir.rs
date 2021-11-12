@@ -22,6 +22,7 @@ pub struct Dir<HANDLE: VFatHandle> {
     pub vfat: HANDLE,
     pub cluster: Cluster,
     pub name: String,
+    pub metadata: Metadata,
 }
 
 #[repr(C, packed)]
@@ -209,6 +210,7 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
                     vfat: self.vfat.clone(),
                     cluster: Cluster { 0: entry_cluster },
                     name,
+                    metadata: Metadata::from(regular),
                 })
             } else {
                 Entry::File(File {

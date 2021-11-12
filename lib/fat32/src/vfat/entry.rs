@@ -17,26 +17,44 @@ impl<HANDLE: VFatHandle> traits::Entry for Entry<HANDLE> {
     type Metadata = Metadata;
 
     fn name(&self) -> &str {
-        unimplemented!("file::name")
+        match self {
+            Entry::File(file) => &file.name,
+            Entry::Dir(dir) => &dir.name,
+        }
     }
 
     fn metadata(&self) -> &Self::Metadata {
-        unimplemented!("file::name")
+        match self {
+            Entry::File(file) => &file.metadata,
+            Entry::Dir(dir) => &dir.metadata,
+        }
     }
 
     fn as_file(&self) -> Option<&File<HANDLE>> {
-        unimplemented!("file::name")
+        match self {
+            Entry::File(file) => Some(&file),
+            Entry::Dir(_) => None,
+        }
     }
 
     fn as_dir(&self) -> Option<&Dir<HANDLE>> {
-        unimplemented!("file::name")
+        match self {
+            Entry::File(_) => None,
+            Entry::Dir(dir) => Some(&dir),
+        }
     }
 
     fn into_file(self) -> Option<File<HANDLE>> {
-        unimplemented!("file::name")
+        match self {
+            Entry::File(file) => Some(file),
+            Entry::Dir(_) => None,
+        }
     }
 
     fn into_dir(self) -> Option<Dir<HANDLE>> {
-        unimplemented!("file::name")
+        match self {
+            Entry::File(_) => None,
+            Entry::Dir(dir) => Some(dir),
+        }
     }
 }

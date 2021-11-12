@@ -38,6 +38,24 @@ pub struct Metadata {
     last_modification_timestamp: Timestamp,
 }
 
+impl From<u16> for Date {
+    fn from(raw_num: u16) -> Date {
+        Date(raw_num)
+    }
+}
+
+impl From<u16> for Time {
+    fn from(raw_num: u16) -> Time {
+        Time(raw_num)
+    }
+}
+
+impl Timestamp {
+    fn from(date: Date, time: Time) -> Timestamp {
+        Timestamp {date, time}
+    }
+}
+
 impl traits::Timestamp for Timestamp {
     fn year(&self) -> usize {
         (self.date.0 >> 9 & 0b1111111) as usize + 1980
@@ -65,6 +83,18 @@ impl traits::Timestamp for Timestamp {
 }
 
 impl Metadata {
+    pub fn empty() -> Metadata {
+        let date = Date::from(0);
+        let time = Time::from(0);
+        let timestamp = Timestamp::from(date, time);
+        Metadata {
+            attributes: Attributes{ 0: 0x10 },
+            create_timestamp: timestamp,
+            last_accessed_date: date,
+            last_modification_timestamp: timestamp,
+        }
+    }
+
     pub fn from(dir_entry: VFatRegularDirEntry) -> Metadata {
         Metadata {
             attributes: dir_entry.attributes,

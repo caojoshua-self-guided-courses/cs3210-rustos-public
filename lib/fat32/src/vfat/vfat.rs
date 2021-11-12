@@ -14,7 +14,7 @@ use crate::mbr::MasterBootRecord;
 use crate::traits;
 use crate::traits::{BlockDevice, FileSystem};
 use crate::util::{SliceExt, VecExt};
-use crate::vfat::{BiosParameterBlock, CachedPartition, Partition};
+use crate::vfat::{BiosParameterBlock, CachedPartition, Metadata, Partition};
 use crate::vfat::{Cluster, Dir, Entry, Error, FatEntry, File, Status};
 
 /// A generic trait that handles a critical section as a closure
@@ -196,6 +196,7 @@ impl<'a, HANDLE: VFatHandle> FileSystem for &'a HANDLE {
                 vfat: self.clone(),
                 cluster: Cluster::from(vfat.root_dir_cluster),
                 name: String::from(""),
+                metadata: Metadata::empty(),
             })
         })
     }
