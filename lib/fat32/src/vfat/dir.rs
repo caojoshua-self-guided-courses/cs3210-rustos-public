@@ -19,9 +19,9 @@ const LONG_FILENAME_MAX_CHARS: u8 = 13;
 
 #[derive(Clone, Debug)]
 pub struct Dir<HANDLE: VFatHandle> {
-    vfat: HANDLE,
-    cluster: Cluster,
-    name: String,
+    pub vfat: HANDLE,
+    pub cluster: Cluster,
+    pub name: String,
 }
 
 #[repr(C, packed)]
@@ -130,13 +130,10 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
 
     #[allow(safe_packed_borrows)]
     fn entries(&self) -> io::Result<Self::Iter> {
-        let mut vfat_entries: Vec<VFatDirEntry> = Vec::new();
-
-        self.vfat.lock(|vfat| -> io::Result<()> {
+        let vfat_entries = self.vfat.lock(|vfat| -> io::Result<Vec<VFatDirEntry>> {
             let mut bytes: Vec<u8> = Vec::new();
             vfat.read_chain(self.cluster, &mut bytes)?;
-            vfat_entries = unsafe { bytes.cast() };
-            Ok(())
+            Ok(unsafe { bytes.cast() })
         })?;
 
         let mut curr = 0;

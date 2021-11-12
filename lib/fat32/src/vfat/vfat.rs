@@ -8,9 +8,10 @@ use shim::io;
 use shim::ioerr;
 use shim::newioerr;
 use shim::path;
-use shim::path::Path;
+use shim::path::{Component, Path};
 
 use crate::mbr::MasterBootRecord;
+use crate::traits;
 use crate::traits::{BlockDevice, FileSystem};
 use crate::util::{SliceExt, VecExt};
 use crate::vfat::{BiosParameterBlock, CachedPartition, Partition};
@@ -31,7 +32,8 @@ pub struct VFat<HANDLE: VFatHandle> {
     sectors_per_fat: u32,
     fat_start_sector: u64,
     data_start_sector: u64,
-    rootdir_cluster: Cluster,
+    // rootdir: Dir<HANDLE>,
+    root_dir_cluster: Cluster,
 }
 
 impl<HANDLE: VFatHandle> VFat<HANDLE> {
@@ -66,12 +68,13 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         let vfat = VFat {
             phantom: PhantomData,
             device: cached_partition,
-            bytes_per_sector: 0,
-            sectors_per_cluster: 0,
-            sectors_per_fat: 0,
+            bytes_per_sector: ebpb.bytes_per_sector,
+            sectors_per_cluster: ebpb.sectors_per_cluster,
+            sectors_per_fat: ebpb.sectors_per_fat_32_bit,
+            // TODO: compute fat/data start sectors
             fat_start_sector: 0,
             data_start_sector: 0,
-            rootdir_cluster: Cluster::from(0),
+            root_dir_cluster: Cluster::from(ebpb.root_cluster_num),
         };
         Ok(VFatHandle::new(vfat))
     }
@@ -90,28 +93,31 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         }
 
         for i in 0..self.sectors_per_cluster {
-            self.device
-                .read_all_sector(self.cluster_raw_sector(Cluster{ 0: cluster.0 + i as u32 }), buf)?;
+            self.device.read_all_sector(
+                self.cluster_raw_sector(Cluster {
+                    0: cluster.0 + i as u32,
+                }),
+                buf,
+            )?;
         }
 
         Ok(buf.len())
     }
 
     //  * A method to write from a buffer into a cluster from an offset
-    fn write_cluster(
-        &mut self,
-        cluster: Cluster,
-        offset: usize,
-        buf: &[u8],
-    ) -> io::Result<usize> {
+    fn write_cluster(&mut self, cluster: Cluster, offset: usize, buf: &[u8]) -> io::Result<usize> {
         if offset >= (self.bytes_per_sector * (self.sectors_per_cluster as u16)) as usize {
             return Ok(0);
         }
 
         let mut bytes_written = 0;
         for i in 0..self.sectors_per_cluster {
-            bytes_written += self.device
-                .write_sector(self.cluster_raw_sector(Cluster{ 0: cluster.0 + i as u32 }), buf)?;
+            bytes_written += self.device.write_sector(
+                self.cluster_raw_sector(Cluster {
+                    0: cluster.0 + i as u32,
+                }),
+                buf,
+            )?;
         }
 
         Ok(bytes_written)
@@ -159,7 +165,9 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         self.device.read_all_sector(sector, &mut bytes)?;
         let bytes: Vec<u32> = unsafe { bytes.cast() };
 
-        Ok(FatEntry { 0: bytes[offset as usize] })
+        Ok(FatEntry {
+            0: bytes[offset as usize],
+        })
     }
 
     // pub fn cluster(&mut self, fat_entry: FatEntry) -> Cluster {
@@ -178,11 +186,56 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
 }
 
 impl<'a, HANDLE: VFatHandle> FileSystem for &'a HANDLE {
-    type File = crate::traits::Dummy;
-    type Dir = crate::traits::Dummy;
-    type Entry = crate::traits::Dummy;
+    type File = File<HANDLE>;
+    type Dir = Dir<HANDLE>;
+    type Entry = Entry<HANDLE>;
+
+    fn open_root_dir(self) -> Entry<HANDLE> {
+        self.lock(|vfat| {
+            Entry::Dir(Dir {
+                vfat: self.clone(),
+                cluster: Cluster::from(vfat.root_dir_cluster),
+                name: String::from(""),
+            })
+        })
+    }
 
     fn open<P: AsRef<Path>>(self, path: P) -> io::Result<Self::Entry> {
-        unimplemented!("FileSystem::open()")
+        let mut entry = self.open_root_dir();
+
+        let path = path.as_ref();
+        if !path.is_absolute() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Path must be absolute",
+            ))
+        }
+
+        for component in path.components() {
+            entry = match component {
+                Component::RootDir => self.open_root_dir(),
+                Component::CurDir => continue,
+                // TODO: support parent directories
+                Component::ParentDir => self.open_root_dir(),
+                Component::Normal(name) => {
+                    let dir_entry = match traits::Entry::as_dir(&entry) {
+                        Some(dir_entry) => dir_entry,
+                        None => return Err(io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            format!("`{}` is not a directory", traits::Entry::name(&entry)),
+                        ))
+                    };
+                    dir_entry.find(name)?
+                },
+                Component::Prefix(_) => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "RustOS does not accept Windows path prefix in path",
+                    ))
+                }
+            };
+        }
+
+        Ok(entry)
     }
 }

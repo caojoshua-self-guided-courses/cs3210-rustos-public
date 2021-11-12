@@ -90,6 +90,8 @@ pub trait FileSystem: Sized {
     /// All other error values are implementation defined.
     fn open<P: AsRef<Path>>(self, path: P) -> io::Result<Self::Entry>;
 
+    fn open_root_dir(self) -> Self::Entry;
+
     /// Opens the file at `path`. `path` must be absolute.
     ///
     /// # Errors
