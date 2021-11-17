@@ -163,17 +163,14 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
 
         let mut bytes: Vec<u8> = Vec::new();
         self.device.read_all_sector(sector, &mut bytes)?;
-        let bytes: Vec<u32> = unsafe { bytes.cast() };
 
-        Ok(FatEntry {
-            0: bytes[offset as usize],
-        })
+        let mut fat_entry_val = 0;
+        for _ in 0..4 {
+            fat_entry_val = fat_entry_val << 1 + bytes[offset as usize];
+        }
+
+        Ok(FatEntry::from(fat_entry_val))
     }
-
-    // pub fn cluster(&mut self, fat_entry: FatEntry) -> Cluster {
-    //     Cluster {0: self.data_start_sector + fat_entry.0 }
-
-    // }
 
     pub fn cluster_raw_sector(&self, cluster: Cluster) -> u64 {
         // data sector starts with cluster 2

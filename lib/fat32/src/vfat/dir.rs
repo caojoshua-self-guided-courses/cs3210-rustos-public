@@ -119,9 +119,13 @@ impl<HANDLE: VFatHandle> Iterator for EntryIterator<HANDLE> {
     type Item = Entry<HANDLE>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let item = self.entries[self.curr].clone();
-        self.curr += 1;
-        Some(item)
+        if self.curr >= self.entries.len() {
+            None
+        } else {
+            let item = self.entries[self.curr].clone();
+            self.curr += 1;
+            Some(item)
+        }
     }
 }
 

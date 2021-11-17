@@ -22,6 +22,12 @@ pub enum Status {
 #[repr(C, packed)]
 pub struct FatEntry(pub u32);
 
+impl From<u32> for FatEntry {
+    fn from(raw_num: u32) -> FatEntry {
+        FatEntry{ 0: raw_num }
+    }
+}
+
 impl FatEntry {
     /// Returns the `Status` of the FAT entry `self`.
     pub fn status(&self) -> Status {

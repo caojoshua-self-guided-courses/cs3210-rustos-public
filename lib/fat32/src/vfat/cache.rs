@@ -85,7 +85,10 @@ impl CachedPartition {
         if self.cache.get(&physical_sector).is_none() {
             let mut bytes = Vec::new();
             for _ in 0..self.factor() {
-                self.read_all_sector(sector, &mut bytes)?;
+                // infinite loop!
+                // this -> read_all_sector -> read_sector -> get -> this
+                // self.read_all_sector(sector, &mut bytes)?;
+                self.device.read_all_sector(sector, &mut bytes)?;
             }
             self.cache.insert(physical_sector, CacheEntry{ data: bytes, dirty: false});
         }
@@ -129,14 +132,17 @@ impl BlockDevice for CachedPartition {
     }
 
     fn read_sector(&mut self, sector: u64, buf: &mut [u8]) -> io::Result<usize> {
-        match self.cache.get(&sector) {
-            Some(cache_entry) => {
-                buf.copy_from_slice(cache_entry.data.as_slice());
-                Ok(buf.len())
-            },
-            // Am I supposed to move this into cache and then read?
-            None => Ok(0)
-        }
+        let bytes = self.get(sector)?;
+        buf.clone_from_slice(bytes);
+        Ok(buf.len())
+        // match self.cache.get(&sector) {
+        //     Some(cache_entry) => {
+        //         buf.copy_from_slice(cache_entry.data.as_slice());
+        //         Ok(buf.len())
+        //     },
+        //     // Am I supposed to move this into cache and then read?
+        //     None => Ok(0)
+        // }
     }
 
     fn write_sector(&mut self, sector: u64, buf: &[u8]) -> io::Result<usize> {
