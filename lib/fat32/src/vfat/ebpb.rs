@@ -11,9 +11,9 @@ pub struct BiosParameterBlock {
     oem_identifier: u64,
     pub bytes_per_sector: u16,
     pub sectors_per_cluster: u8,
-    num_reserved_sectors: u16,
-    num_fats: u8,
-    max_directory_entires: u16,
+    pub num_reserved_sectors: u16,
+    pub num_fats: u8,
+    max_directory_entries: u16,
     num_logical_sectors: u16,
     media_descriptor_type: u8,
     sectors_per_fat: u16,
@@ -66,6 +66,15 @@ impl BiosParameterBlock {
 
         Ok(ebpb)
     }
+
+    pub fn sectors_per_fat(&self) -> u32 {
+        if self.sectors_per_fat == 0 {
+            self.sectors_per_fat_32_bit
+        } else {
+            self.sectors_per_fat.into()
+        }
+
+    }
 }
 
 impl fmt::Debug for BiosParameterBlock {
@@ -77,7 +86,7 @@ impl fmt::Debug for BiosParameterBlock {
             .field("sectors_per_cluster", &self.sectors_per_cluster)
             .field("num_reserved_sectors", &{ self.num_reserved_sectors })
             .field("num_fats", &self.num_fats)
-            .field("max_directory_entires", &{ self.max_directory_entires })
+            .field("max_directory_entires", &{ self.max_directory_entries })
             .field("num_logical_sectors", &{ self.num_logical_sectors })
             .field("media_descriptor_type", &self.media_descriptor_type)
             .field("sectors_per_fat", &{ self.sectors_per_fat })

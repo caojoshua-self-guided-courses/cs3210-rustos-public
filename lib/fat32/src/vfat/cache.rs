@@ -78,7 +78,7 @@ impl CachedPartition {
 
     fn get_cache_entry(&mut self, sector: u64) -> io::Result<(u64, &mut CacheEntry)> {
         let physical_sector = match self.virtual_to_physical(sector) {
-            Some(physical_partiton) => physical_partiton,
+            Some(physical_sector) => physical_sector,
             None => return Err(io::Error::new(io::ErrorKind::Other, "virtual sectors could not be mapped to physical sector")),
         };
 

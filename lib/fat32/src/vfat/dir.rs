@@ -144,7 +144,7 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
         let mut curr = 0;
         let mut entries: Vec<Entry<HANDLE>> = Vec::new();
 
-        while curr < entries.len() {
+        while curr < vfat_entries.len() {
             let mut unknown_dir_entry: VFatUnknownDirEntry = unsafe { vfat_entries[curr].unknown };
 
             // Compute the long file name if it exists.
@@ -168,19 +168,24 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
                     &long_filename.name_third,
                 ];
 
+                // TODO: figure out why this is breaking.
                 // Insert character into long_filename
-                'outer: for char_set in char_sets.iter() {
-                    for character in char_set.iter() {
-                        long_name[lfn_idx as usize] = *character;
-                        lfn_idx += 1;
-                    }
-                }
+                // 'outer: for char_set in char_sets.iter() {
+                //     for character in char_set.iter() {
+                //         long_name[lfn_idx as usize] = *character;
+                //         lfn_idx += 1;
+                //     }
+                // }
 
                 curr += 1;
                 unknown_dir_entry = unsafe { vfat_entries[curr].unknown };
             }
 
             let regular = unsafe { vfat_entries[curr].regular };
+            // If the first character in the name is 0x00, the previous entry is the last entry.
+            if regular.name[0] == 0x00 {
+                break;
+            }
             curr += 1;
 
             // Helper to return a Vector with characters up until
@@ -188,24 +193,37 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
             fn trim<T: Copy + Into<u16>>(bytes: &[T]) -> Vec<T> {
                 let mut vec: Vec<T> = Vec::new();
                 for &byte in bytes {
-                    if byte.into() == 0x00 || byte.into() == 0xFF {
+                    if byte.into() == 0x00 || byte.into() == 0x20 {
                         break;
                     }
                     vec.push(byte);
                 }
                 vec
             }
+            // fn trim<T: Copy + PartialEq>(bytes: &[T]) -> Vec<T> {
+            //     let mut vec: Vec<T> = Vec::new();
+            //     for &byte in bytes {
+            //         if byte == 0x00 || byte.into() == 0xFF {
+            //             break;
+            //         }
+            //         vec.push(byte);
+            //     }
+            //     vec
+            // }
+
             let long_name = trim(long_name.as_slice());
             let short_name = trim(&regular.name);
             let extension = trim(&regular.extension);
 
-            let name = String::from_utf16(&long_name.as_slice()).unwrap()
-                + from_utf8(short_name.as_slice()).unwrap()
-                + "."
-                + from_utf8(extension.as_slice()).unwrap();
+            let mut name = String::from_utf16(&long_name.as_slice()).unwrap()
+                + from_utf8(short_name.as_slice()).unwrap();
+            if extension.len() > 0 {
+                name += ".";
+                name += from_utf8(extension.as_slice()).unwrap();
+            }
 
             let entry_cluster =
-                (regular.first_cluster_high_16 as u32) << 16 + regular.first_cluster_low_16;
+                ((regular.first_cluster_high_16 as u32) << 16) + regular.first_cluster_low_16 as u32;
 
             let is_directory = regular.attributes.0 & 0x10 != 0;
             entries.push(if is_directory {

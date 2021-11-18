@@ -65,15 +65,17 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         };
         let cached_partition = CachedPartition::new(device, partition);
 
+        let fat_start_sector = fat_partition_entry.relative_sector + ebpb.num_reserved_sectors as u32;
+        let data_start_sector = fat_start_sector + (ebpb.num_fats as u32 * ebpb.sectors_per_fat());
+
         let vfat = VFat {
             phantom: PhantomData,
             device: cached_partition,
             bytes_per_sector: ebpb.bytes_per_sector,
             sectors_per_cluster: ebpb.sectors_per_cluster,
             sectors_per_fat: ebpb.sectors_per_fat_32_bit,
-            // TODO: compute fat/data start sectors
-            fat_start_sector: 0,
-            data_start_sector: 0,
+            fat_start_sector: fat_start_sector.into(),
+            data_start_sector: data_start_sector.into(),
             root_dir_cluster: Cluster::from(ebpb.root_cluster_num),
         };
         Ok(VFatHandle::new(vfat))
@@ -158,22 +160,25 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
     // fn fat_entry(&mut self, cluster: Cluster) -> io::Result<&FatEntry> {
     pub fn fat_entry(&mut self, cluster: Cluster) -> io::Result<FatEntry> {
         let bytes_offset = cluster.0 * size_of::<FatEntry>() as u32;
-        let sector = self.fat_start_sector + (bytes_offset / self.bytes_per_sector as u32) as u64;
+        // FATs/clusters are 1-indexed
+        let sector = self.fat_start_sector - 1 + (bytes_offset / self.bytes_per_sector as u32) as u64;
         let offset = bytes_offset % self.bytes_per_sector as u32;
 
         let mut bytes: Vec<u8> = Vec::new();
         self.device.read_all_sector(sector, &mut bytes)?;
 
-        let mut fat_entry_val = 0;
-        for _ in 0..4 {
-            fat_entry_val = fat_entry_val << 1 + bytes[offset as usize];
+        let mut fat_entry_val: u32 = 0;
+        for i in 0..4 {
+            fat_entry_val = (fat_entry_val << 1) + bytes[(offset + i) as usize] as u32;
         }
 
         Ok(FatEntry::from(fat_entry_val))
     }
 
     pub fn cluster_raw_sector(&self, cluster: Cluster) -> u64 {
-        // data sector starts with cluster 2
+        // data sector starts with cluster 2. fats and sectors are 1-indexed
+        // TODO: ???
+        // self.data_start_sector + cluster.0 as u64 - 1
         self.data_start_sector + cluster.0 as u64 - 2
     }
 
