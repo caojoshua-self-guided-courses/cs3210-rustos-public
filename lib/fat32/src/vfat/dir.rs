@@ -153,11 +153,11 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
                 let long_filename = unsafe { vfat_entries[curr].long_filename };
 
                 // Compute the index for this long file name entry
-                let lfn_sequence_number = long_filename.sequence_number & 0b1111;
+                let lfn_sequence_number = (long_filename.sequence_number & 0b1111) - 1;
                 let mut lfn_idx = lfn_sequence_number * LONG_FILENAME_MAX_CHARS;
 
                 // Resize long_name if the new sequnce number is the largest seen so far.
-                let diff = lfn_idx as i32 - long_name.len() as i32;
+                let diff = (lfn_idx + LONG_FILENAME_MAX_CHARS) as i32 - long_name.len() as i32;
                 if diff > 0 {
                     long_name.resize(long_name.len() + diff as usize, 0);
                 }
@@ -170,12 +170,12 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
 
                 // TODO: figure out why this is breaking.
                 // Insert character into long_filename
-                // 'outer: for char_set in char_sets.iter() {
-                //     for character in char_set.iter() {
-                //         long_name[lfn_idx as usize] = *character;
-                //         lfn_idx += 1;
-                //     }
-                // }
+                'outer: for char_set in char_sets.iter() {
+                    for character in char_set.iter() {
+                        long_name[lfn_idx as usize] = *character;
+                        lfn_idx += 1;
+                    }
+                }
 
                 curr += 1;
                 unknown_dir_entry = unsafe { vfat_entries[curr].unknown };
@@ -200,23 +200,18 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
                 }
                 vec
             }
-            // fn trim<T: Copy + PartialEq>(bytes: &[T]) -> Vec<T> {
-            //     let mut vec: Vec<T> = Vec::new();
-            //     for &byte in bytes {
-            //         if byte == 0x00 || byte.into() == 0xFF {
-            //             break;
-            //         }
-            //         vec.push(byte);
-            //     }
-            //     vec
-            // }
 
-            let long_name = trim(long_name.as_slice());
-            let short_name = trim(&regular.name);
+            let long_name_original_len = long_name.len();
+            let mut name = String::from_utf16(&trim(long_name.as_slice())).unwrap();
+
+            // If the long name was trimmed, then we should not use the regular
+            // file name.
+            if name.len() == long_name_original_len {
+                name += from_utf8(trim(&regular.name).as_slice()).unwrap();
+            }
+
+            // Add the file extension to the filename if its lenght is >0
             let extension = trim(&regular.extension);
-
-            let mut name = String::from_utf16(&long_name.as_slice()).unwrap()
-                + from_utf8(short_name.as_slice()).unwrap();
             if extension.len() > 0 {
                 name += ".";
                 name += from_utf8(extension.as_slice()).unwrap();
