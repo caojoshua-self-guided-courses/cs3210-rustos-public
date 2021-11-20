@@ -103,7 +103,7 @@ impl<HANDLE: VFatHandle> Dir<HANDLE> {
         };
 
         for entry in traits::Dir::entries(self)? {
-            if self.name == name {
+            if traits::Entry::name(&entry) == name {
                 return Ok(entry);
             }
         }

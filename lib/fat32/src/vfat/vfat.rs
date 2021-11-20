@@ -156,11 +156,9 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
 
     //  * A method to return a reference to a `FatEntry` for a cluster where the
     //    reference points directly into a cached sector.
-    // fn fat_entry(&mut self, cluster: Cluster) -> io::Result<&FatEntry> {
     pub fn fat_entry(&mut self, cluster: Cluster) -> io::Result<FatEntry> {
         let bytes_offset = cluster.0 * size_of::<FatEntry>() as u32;
-        // FATs/clusters are 1-indexed
-        let sector = self.fat_start_sector - 1 + (bytes_offset / self.bytes_per_sector as u32) as u64;
+        let sector = self.fat_start_sector + (bytes_offset / self.bytes_per_sector as u32) as u64;
         let offset = bytes_offset % self.bytes_per_sector as u32;
 
         let mut bytes: Vec<u8> = Vec::new();
@@ -168,7 +166,7 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
 
         let mut fat_entry_val: u32 = 0;
         for i in 0..4 {
-            fat_entry_val = (fat_entry_val << 1) + bytes[(offset + i) as usize] as u32;
+            fat_entry_val = (fat_entry_val << 8) + bytes[(offset + i) as usize] as u32;
         }
 
         Ok(FatEntry::from(fat_entry_val))
