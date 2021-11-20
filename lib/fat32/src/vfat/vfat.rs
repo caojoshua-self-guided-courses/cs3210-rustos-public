@@ -32,7 +32,6 @@ pub struct VFat<HANDLE: VFatHandle> {
     sectors_per_fat: u32,
     fat_start_sector: u64,
     data_start_sector: u64,
-    // rootdir: Dir<HANDLE>,
     root_dir_cluster: Cluster,
 }
 
@@ -65,8 +64,8 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         };
         let cached_partition = CachedPartition::new(device, partition);
 
-        let fat_start_sector = fat_partition_entry.relative_sector + ebpb.num_reserved_sectors as u32;
-        let data_start_sector = fat_start_sector + (ebpb.num_fats as u32 * ebpb.sectors_per_fat());
+        let fat_start_sector = ebpb.num_reserved_sectors;
+        let data_start_sector = fat_start_sector as u32 + (ebpb.num_fats as u32 * ebpb.sectors_per_fat());
 
         let vfat = VFat {
             phantom: PhantomData,

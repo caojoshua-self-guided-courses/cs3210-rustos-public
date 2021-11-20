@@ -216,6 +216,7 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
                 name += ".";
                 name += from_utf8(extension.as_slice()).unwrap();
             }
+            println!("{}", name);
 
             let entry_cluster =
                 ((regular.first_cluster_high_16 as u32) << 16) + regular.first_cluster_low_16 as u32;
@@ -241,6 +242,7 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
             });
         }
 
+        println!("there are {} entries", entries.len());
         Ok(EntryIterator {
             phantom: PhantomData,
             curr: 0,
