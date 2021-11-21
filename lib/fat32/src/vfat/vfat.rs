@@ -80,10 +80,40 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         Ok(VFatHandle::new(vfat))
     }
 
-    //  * A method to read from an offset of a cluster into a buffer.
-    //  TODO: deal with offsets
-    //  TODO: make code cleaner with helpers for common logic
     fn read_cluster(
+        &mut self,
+        cluster: Cluster,
+        offset: usize,
+        buf: &mut [u8],
+    ) -> io::Result<usize> {
+        if offset >= (self.bytes_per_sector * (self.sectors_per_cluster as u16)) as usize {
+            return Ok(0);
+        }
+
+        let first_sector = offset / self.bytes_per_sector as usize;
+        let sector_offset = offset % self.bytes_per_sector as usize;
+
+        let mut bytes = Vec::new();
+        for i in first_sector..self.sectors_per_cluster as usize {
+            self.device.read_all_sector(
+                self.cluster_raw_sector(Cluster {
+                    0: cluster.0 + i as u32,
+                }),
+                &mut bytes,
+            )?;
+        }
+
+        let mut read_bytes = 0;
+        for (dst, src) in buf.iter_mut().zip(bytes[sector_offset..].iter()) {
+            *dst = *src;
+            read_bytes += 1;
+        }
+
+        Ok(read_bytes)
+    }
+
+    //  * A method to read from an offset of a cluster into a buffer.
+    fn read_all_cluster(
         &mut self,
         cluster: Cluster,
         offset: usize,
@@ -93,7 +123,10 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
             return Ok(0);
         }
 
-        for i in 0..self.sectors_per_cluster {
+        let first_sector = offset / self.bytes_per_sector as usize;
+        let sector_offset = offset % self.bytes_per_sector as usize;
+
+        for i in first_sector..self.sectors_per_cluster as usize {
             self.device.read_all_sector(
                 self.cluster_raw_sector(Cluster {
                     0: cluster.0 + i as u32,
@@ -101,6 +134,8 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
                 buf,
             )?;
         }
+
+        buf.drain(..sector_offset);
 
         Ok(buf.len())
     }
@@ -123,12 +158,56 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
 
         Ok(bytes_written)
     }
+
+    pub fn read_chain(&mut self, start: Cluster, offset: usize, buf: &mut [u8]) -> io::Result<usize> {
+        // Clusters start at 2.
+        if start.0 == 0 || start.0 == 1 {
+            return Ok(0)
+        }
+
+        println!("reading from offset {} into buf of size {}", offset, buf.len());
+        println!("bytes per cluster: {}", self.bytes_per_cluster());
+        println!("sectors per cluster: {}", self.sectors_per_cluster);
+
+        let mut bytes_read = 0;
+        let mut cluster = Cluster::from(start.0 + (offset / self.bytes_per_cluster()) as u32);
+        let mut cluster_offset = offset % self.bytes_per_cluster();
+        let mut count = cluster.0 - start.0;
+        loop {
+            println!("reading from cluster {}", count);
+
+            match self.read_cluster(cluster, cluster_offset, &mut buf[bytes_read..]) {
+                Ok(0) => return Ok(buf.len()),
+                Ok(n) => {
+                    println!("> read {} bytes", n);
+                    bytes_read += n;
+                }
+                Err(err) => return Err(err),
+            }
+            cluster_offset = 0;
+            let fat_entry = self.fat_entry(cluster)?;
+
+            cluster = match fat_entry.status() {
+                Status::Data(cluster) => cluster,
+                _ => return Ok(buf.len()),
+            };
+            count += 1;
+        }
+    }
+
     //  * A method to read all of the clusters chained from a starting cluster
     //    into a vector.
-    pub fn read_chain(&mut self, start: Cluster, buf: &mut Vec<u8>) -> io::Result<usize> {
+    pub fn read_all_chain(&mut self, start: Cluster, offset: usize, buf: &mut Vec<u8>) -> io::Result<usize> {
+        // Clusters start at 2.
+        if start.0 == 0 || start.0 == 1 {
+            return Ok(0)
+        }
+
         let mut cluster = start;
+        let mut cluster_offset = offset % self.bytes_per_cluster();
         loop {
-            self.read_cluster(cluster, 0, buf)?;
+            self.read_all_cluster(cluster, cluster_offset, buf)?;
+            cluster_offset = 0;
             let fat_entry = self.fat_entry(cluster)?;
 
             cluster = match fat_entry.status() {
@@ -172,13 +251,13 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         Ok(FatEntry::from(fat_entry_val))
     }
 
-    pub fn cluster_raw_sector(&self, cluster: Cluster) -> u64 {
+    fn cluster_raw_sector(&self, cluster: Cluster) -> u64 {
         // data sector starts with cluster 2
         let offset = (cluster.0 - 2) * self.sectors_per_cluster as u32;
         self.data_start_sector + offset as u64
     }
 
-    pub fn bytes_per_cluster(&self) -> usize {
+    fn bytes_per_cluster(&self) -> usize {
         (self.sectors_per_cluster as u16 * self.bytes_per_sector) as usize
     }
 }

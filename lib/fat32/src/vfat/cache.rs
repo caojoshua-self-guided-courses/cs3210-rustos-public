@@ -130,10 +130,12 @@ impl BlockDevice for CachedPartition {
 
     fn read_sector(&mut self, sector: u64, buf: &mut [u8]) -> io::Result<usize> {
         let bytes = self.get(sector)?;
+        let mut read_bytes = 0;
         for (dst, src) in buf.iter_mut().zip(bytes.iter()) {
             *dst = *src;
+            read_bytes += 1;
         }
-        Ok(buf.len())
+        Ok(read_bytes)
     }
 
     fn write_sector(&mut self, sector: u64, buf: &[u8]) -> io::Result<usize> {

@@ -141,7 +141,7 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
 
         let vfat_entries = self.vfat.lock(|vfat| -> io::Result<Vec<VFatDirEntry>> {
             let mut bytes: Vec<u8> = Vec::new();
-            vfat.read_chain(self.cluster, &mut bytes)?;
+            vfat.read_all_chain(self.cluster, 0, &mut bytes)?;
             Ok(unsafe { bytes.cast() })
         })?;
 

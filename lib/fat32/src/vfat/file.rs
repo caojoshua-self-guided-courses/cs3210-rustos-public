@@ -28,12 +28,19 @@ impl<HANDLE: VFatHandle> traits::File for File<HANDLE> {
 
 impl<HANDLE: VFatHandle> io::Read for File<HANDLE> {
     fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
-        // TODO: use seek_pos
-        let mut vec: Vec<u8> = Vec::new();
-        self.vfat
-            .lock(|vfat| -> io::Result<usize> { vfat.read_chain(self.cluster, &mut vec) })?;
-        buf.write(vec.as_slice())?;
-        Ok(buf.len())
+        println!("reading from file {} of size {}", self.name, self.size);
+        let mut bytes_read = self.vfat
+            .lock(|vfat| -> io::Result<usize> { vfat.read_chain(self.cluster, self.seek_pos as usize, buf) })?;
+
+        let bytes_left = self.size as i128 - self.seek_pos as i128;
+        let diff = bytes_read as i128 - bytes_left;
+        if diff > 0 {
+            bytes_read -= diff as usize;
+        }
+
+        println!("read {} bytes", bytes_read);
+        io::Seek::seek(self, SeekFrom::Current(bytes_read as i64))?;
+        Ok(bytes_read as usize)
     }
 }
 
@@ -75,7 +82,7 @@ impl<HANDLE: VFatHandle> io::Seek for File<HANDLE> {
                 io::ErrorKind::InvalidInput,
                 format!("Seek before 0 in file `{}`", self.name),
             ))
-        } else if new_pos > (self.size - 1) as i128 {
+        } else if new_pos > self.size as i128 {
             Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 format!(
