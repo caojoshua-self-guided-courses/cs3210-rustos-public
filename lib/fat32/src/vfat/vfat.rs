@@ -94,11 +94,10 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         let sector_offset = offset % self.bytes_per_sector as usize;
 
         let mut bytes = Vec::new();
+        let cluster_sector = self.cluster_raw_sector(cluster);
         for i in first_sector..self.sectors_per_cluster as usize {
             self.device.read_all_sector(
-                self.cluster_raw_sector(Cluster {
-                    0: cluster.0 + i as u32,
-                }),
+                cluster_sector + i as u64,
                 &mut bytes,
             )?;
         }

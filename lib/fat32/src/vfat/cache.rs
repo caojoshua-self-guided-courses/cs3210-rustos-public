@@ -76,7 +76,7 @@ impl CachedPartition {
         Some(physical_sector)
     }
 
-    fn get_cache_entry(&mut self, sector: u64) -> io::Result<(u64, &mut CacheEntry)> {
+    fn get_cache_entry(&mut self, sector: u64) -> io::Result<&mut CacheEntry> {
         let physical_sector = match self.virtual_to_physical(sector) {
             Some(physical_sector) => physical_sector,
             None => return Err(io::Error::new(io::ErrorKind::Other, "virtual sectors could not be mapped to physical sector")),
@@ -90,7 +90,7 @@ impl CachedPartition {
             self.cache.insert(physical_sector, CacheEntry{ data: bytes, dirty: false});
         }
 
-        Ok((physical_sector, self.cache.get_mut(&physical_sector).unwrap()))
+        Ok(self.cache.get_mut(&physical_sector).unwrap())
     }
 
     /// Returns a mutable reference to the cached sector `sector`. If the sector
@@ -104,7 +104,7 @@ impl CachedPartition {
     ///
     /// Returns an error if there is an error reading the sector from the disk.
     pub fn get_mut(&mut self, sector: u64) -> io::Result<&mut [u8]> {
-        let (physical_sector, cache_entry) = self.get_cache_entry(sector)?;
+        let cache_entry = self.get_cache_entry(sector)?;
         cache_entry.dirty = true;
         Ok(cache_entry.data.as_mut_slice())
     }
@@ -116,7 +116,7 @@ impl CachedPartition {
     ///
     /// Returns an error if there is an error reading the sector from the disk.
     pub fn get(&mut self, sector: u64) -> io::Result<&[u8]> {
-        let (physical_sector, cache_entry) = self.get_cache_entry(sector)?;
+        let cache_entry = self.get_cache_entry(sector)?;
         Ok(cache_entry.data.as_slice())
     }
 }
