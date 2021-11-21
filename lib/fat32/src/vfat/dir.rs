@@ -61,7 +61,8 @@ const_assert_size!(VFatLfnDirEntry, 32);
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
 pub struct VFatUnknownDirEntry {
-    _reserved_first: [u8; 11],
+    first_byte: u8,
+    _reserved_first: [u8; 10],
     attributes: Attributes,
     _reserved_second: [u8; 20],
 }
@@ -135,6 +136,7 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
 
     #[allow(safe_packed_borrows)]
     fn entries(&self) -> io::Result<Self::Iter> {
+        println!("getting entries for {}", self.name);
         let vfat_entries = self.vfat.lock(|vfat| -> io::Result<Vec<VFatDirEntry>> {
             let mut bytes: Vec<u8> = Vec::new();
             vfat.read_chain(self.cluster, &mut bytes)?;
@@ -144,8 +146,14 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
         let mut curr = 0;
         let mut entries: Vec<Entry<HANDLE>> = Vec::new();
 
-        while curr < vfat_entries.len() {
+        'outer: while curr < vfat_entries.len() {
             let mut unknown_dir_entry: VFatUnknownDirEntry = unsafe { vfat_entries[curr].unknown };
+
+            // Ignore entry if it is deleted/unused.
+            if unknown_dir_entry.first_byte == 0xE5 {
+                curr += 1;
+                continue;
+            }
 
             // Compute the long file name if it exists.
             let mut long_name: Vec<u16> = Vec::new();
@@ -168,9 +176,8 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
                     &long_filename.name_third,
                 ];
 
-                // TODO: figure out why this is breaking.
                 // Insert character into long_filename
-                'outer: for char_set in char_sets.iter() {
+                for char_set in char_sets.iter() {
                     for character in char_set.iter() {
                         long_name[lfn_idx as usize] = *character;
                         lfn_idx += 1;
@@ -178,6 +185,9 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
                 }
 
                 curr += 1;
+                if curr >= vfat_entries.len() {
+                    break 'outer;
+                }
                 unknown_dir_entry = unsafe { vfat_entries[curr].unknown };
             }
 

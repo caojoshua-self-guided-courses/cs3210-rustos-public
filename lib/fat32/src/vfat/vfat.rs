@@ -166,7 +166,7 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
 
         let mut fat_entry_val: u32 = 0;
         for i in 0..4 {
-            fat_entry_val = (fat_entry_val << 8) + bytes[(offset + i) as usize] as u32;
+            fat_entry_val += (bytes[(offset + i) as usize] as u32) << (8 * i);
         }
 
         Ok(FatEntry::from(fat_entry_val))

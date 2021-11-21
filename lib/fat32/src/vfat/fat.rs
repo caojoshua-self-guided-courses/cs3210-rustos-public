@@ -31,7 +31,7 @@ impl From<u32> for FatEntry {
 impl FatEntry {
     /// Returns the `Status` of the FAT entry `self`.
     pub fn status(&self) -> Status {
-        match self.0 {
+        match self.0 & 0x0FFFFFFF {
             0 => Free,
             0x1 | 0xFFFFFF6 => Reserved,
             0xFFFFFF7 => Bad,
