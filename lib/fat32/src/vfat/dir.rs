@@ -149,8 +149,11 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
         'outer: while curr < vfat_entries.len() {
             let mut unknown_dir_entry: VFatUnknownDirEntry = unsafe { vfat_entries[curr].unknown };
 
-            // Ignore entry if it is deleted/unused.
-            if unknown_dir_entry.first_byte == 0xE5 {
+            if unknown_dir_entry.first_byte == 0x00 {
+                // Previous entry was the last. Exit the loop.
+                break;
+            } if unknown_dir_entry.first_byte == 0xE5 {
+                // Ignore entry if it is deleted/unused.
                 curr += 1;
                 continue;
             }
@@ -193,9 +196,6 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
 
             let regular = unsafe { vfat_entries[curr].regular };
             // If the first character in the name is 0x00, the previous entry is the last entry.
-            if regular.name[0] == 0x00 {
-                break;
-            }
             curr += 1;
 
             // Helper to return a Vector with characters up until
@@ -211,21 +211,21 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
                 vec
             }
 
-            let long_name_original_len = long_name.len();
-            let mut name = String::from_utf16(&trim(long_name.as_slice())).unwrap();
+            // If the long filename has no characters, compute the name from
+            // the regular directory.
+            let name = if long_name.len() == 0 {
+                let mut name = String::from_utf8(trim(&regular.name)).unwrap();
 
-            // If the long name was trimmed, then we should not use the regular
-            // file name.
-            if name.len() == long_name_original_len {
-                name += from_utf8(trim(&regular.name).as_slice()).unwrap();
-            }
-
-            // Add the file extension to the filename if its lenght is >0
-            let extension = trim(&regular.extension);
-            if extension.len() > 0 {
-                name += ".";
-                name += from_utf8(extension.as_slice()).unwrap();
-            }
+                // Add the file extension to the filename if its lenght is >0
+                let extension = trim(&regular.extension);
+                if extension.len() > 0 {
+                    name += ".";
+                    name += from_utf8(extension.as_slice()).unwrap();
+                }
+                name
+            } else {
+                String::from_utf16(&trim(long_name.as_slice())).unwrap()
+            };
             println!("{}", name);
 
             let entry_cluster =
