@@ -136,7 +136,9 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
 
     #[allow(safe_packed_borrows)]
     fn entries(&self) -> io::Result<Self::Iter> {
+        println!("\n==========");
         println!("getting entries for {}", self.name);
+
         let vfat_entries = self.vfat.lock(|vfat| -> io::Result<Vec<VFatDirEntry>> {
             let mut bytes: Vec<u8> = Vec::new();
             vfat.read_chain(self.cluster, &mut bytes)?;
@@ -150,8 +152,13 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
             let mut unknown_dir_entry: VFatUnknownDirEntry = unsafe { vfat_entries[curr].unknown };
 
             if unknown_dir_entry.first_byte == 0x00 {
-                // Previous entry was the last. Exit the loop.
-                break;
+                // `0x00` means that the previous entry was the last. If no entries have been
+                // found, keep looking for entries.
+                if entries.len() > 0 {
+                    break;
+                }
+                curr += 1;
+                continue;
             } if unknown_dir_entry.first_byte == 0xE5 {
                 // Ignore entry if it is deleted/unused.
                 curr += 1;
@@ -226,10 +233,12 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
             } else {
                 String::from_utf16(&trim(long_name.as_slice())).unwrap()
             };
-            println!("{}", name);
 
             let entry_cluster =
                 ((regular.first_cluster_high_16 as u32) << 16) + regular.first_cluster_low_16 as u32;
+
+            println!("entry `{}` with cluster `{}`", name, entry_cluster);
+            println!("{}", name);
 
             let is_directory = regular.attributes.0 & 0x10 != 0;
             entries.push(if is_directory {
@@ -252,7 +261,6 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
             });
         }
 
-        println!("there are {} entries", entries.len());
         Ok(EntryIterator {
             phantom: PhantomData,
             curr: 0,

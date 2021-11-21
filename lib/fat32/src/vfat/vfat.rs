@@ -173,10 +173,9 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
     }
 
     pub fn cluster_raw_sector(&self, cluster: Cluster) -> u64 {
-        // data sector starts with cluster 2. fats and sectors are 1-indexed
-        // TODO: ???
-        // self.data_start_sector + cluster.0 as u64 - 1
-        self.data_start_sector + cluster.0 as u64 - 2
+        // data sector starts with cluster 2
+        let offset = (cluster.0 - 2) * self.sectors_per_cluster as u32;
+        self.data_start_sector + offset as u64
     }
 
     pub fn bytes_per_cluster(&self) -> usize {
