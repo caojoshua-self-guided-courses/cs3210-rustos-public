@@ -136,12 +136,9 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
 
     #[allow(safe_packed_borrows)]
     fn entries(&self) -> io::Result<Self::Iter> {
-        println!("\n==========");
-        println!("getting entries for {}", self.name);
-
         let vfat_entries = self.vfat.lock(|vfat| -> io::Result<Vec<VFatDirEntry>> {
             let mut bytes: Vec<u8> = Vec::new();
-            vfat.read_all_chain(self.cluster, 0, &mut bytes)?;
+            vfat.read_all_chain(self.cluster, &mut bytes)?;
             Ok(unsafe { bytes.cast() })
         })?;
 
@@ -236,9 +233,6 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
 
             let entry_cluster =
                 ((regular.first_cluster_high_16 as u32) << 16) + regular.first_cluster_low_16 as u32;
-
-            println!("entry `{}` with cluster `{}`", name, entry_cluster);
-            println!("{}", name);
 
             let is_directory = regular.attributes.0 & 0x10 != 0;
             entries.push(if is_directory {

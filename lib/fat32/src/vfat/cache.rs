@@ -130,17 +130,23 @@ impl BlockDevice for CachedPartition {
 
     fn read_sector(&mut self, sector: u64, buf: &mut [u8]) -> io::Result<usize> {
         let bytes = self.get(sector)?;
-        let mut read_bytes = 0;
+        let mut bytes_read = 0;
         for (dst, src) in buf.iter_mut().zip(bytes.iter()) {
             *dst = *src;
-            read_bytes += 1;
+            bytes_read += 1;
         }
-        Ok(read_bytes)
+        Ok(bytes_read)
     }
 
+    // TODO: this is completely untested.
     fn write_sector(&mut self, sector: u64, buf: &[u8]) -> io::Result<usize> {
-        self.cache.insert(sector, CacheEntry{ data: Vec::from(buf), dirty: true });
-        Ok(self.cache.get(&sector).unwrap().data.len())
+        let cache_entry = self.get_mut(sector).unwrap();
+        let mut bytes_written = 0;
+        for (dst, src) in cache_entry.iter_mut().zip(buf.iter()) {
+            *dst = *src;
+            bytes_written += 1;
+        }
+        Ok(bytes_written)
     }
 }
 

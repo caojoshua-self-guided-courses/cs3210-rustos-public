@@ -45,6 +45,7 @@ impl<HANDLE: VFatHandle> io::Read for File<HANDLE> {
 }
 
 impl<HANDLE: VFatHandle> io::Write for File<HANDLE> {
+    // TODO: this is competely untested.
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         // TODO: use seek_pos
         self.vfat
