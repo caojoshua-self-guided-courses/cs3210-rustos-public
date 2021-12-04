@@ -11,11 +11,12 @@ authors = [
 edition = "2018"
 
 [dependencies]
-ahash = "=0.3.8"
-core_io = "=0.1.20190701"
+shim = { path = "../shim", features = ["alloc"] }
+# ahash 2.18. Need to pull directly from github because this version
+# was yanked. Idk why this works, but if it builds then it builds ;)
+ahash = { git = "https://github.com/tkaitchuck/aHash", rev = "e3b03e888d277cde7f6178813e594d72b89e3ccb" }
 const-random = "=0.1.6"
 const-random-macro = "=0.1.6"
-shim = { path = "../shim", features = ["alloc"] }
 hashbrown = "0.7.2"
 
 [dev-dependencies]

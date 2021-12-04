@@ -28,7 +28,6 @@ impl<HANDLE: VFatHandle> traits::File for File<HANDLE> {
 
 impl<HANDLE: VFatHandle> io::Read for File<HANDLE> {
     fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
-        println!("reading from file {} of size {}", self.name, self.size);
         let mut bytes_read = self.vfat
             .lock(|vfat| -> io::Result<usize> { vfat.read_chain(self.cluster, self.seek_pos as usize, buf) })?;
 
@@ -38,7 +37,6 @@ impl<HANDLE: VFatHandle> io::Read for File<HANDLE> {
             bytes_read -= diff as usize;
         }
 
-        println!("read {} bytes", bytes_read);
         io::Seek::seek(self, SeekFrom::Current(bytes_read as i64))?;
         Ok(bytes_read as usize)
     }
