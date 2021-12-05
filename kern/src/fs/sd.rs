@@ -4,9 +4,13 @@ use shim::ioerr;
 
 use fat32::traits::BlockDevice;
 
+use alloc::vec::Vec;
+
+// use super::emmc::emmc_init;
+
 extern "C" {
     /// A global representing the last SD controller error that occured.
-    static sd_err: i64;
+    pub static sd_err: i64;
 
     /// Initializes the SD card controller.
     ///
@@ -29,8 +33,27 @@ extern "C" {
     fn sd_readsector(n: i32, buffer: *mut u8) -> i32;
 }
 
+// pub static mut wait: Vec<u32> = Vec::new();
+pub static mut wait: [i64; 256] = [0; 256];
+pub static mut index: usize = 0;
+
 // FIXME: Define a `#[no_mangle]` `wait_micros` function for use by `libsd`.
 // The `wait_micros` C signature is: `void wait_micros(unsigned int);`
+#[no_mangle]
+fn wait_micros(us: u32) {
+    // Wait multiplier because its needed for some reason. See main readme
+    // for more details.
+    let us = us * 100;
+    pi::timer::spin_sleep(core::time::Duration::from_micros(us.into()));
+}
+
+// External libsd functions
+#[no_mangle]
+fn uart_puts(bytes: *const [u8]) {
+}
+#[no_mangle]
+fn uart_hex(hex: u32) {
+}
 
 /// A handle to an SD card controller.
 #[derive(Debug)]
@@ -43,7 +66,24 @@ impl Sd {
     /// with atomic memory access, but we can't use it yet since we haven't
     /// written the memory management unit (MMU).
     pub unsafe fn new() -> Result<Sd, io::Error> {
-        unimplemented!("Sd::new()")
+        match sd_init() {
+            0 => Ok(Sd),
+            error_code => Err(Sd::err(error_code.into())),
+        }
+    }
+
+    fn err(error_code: i64) -> io::Error {
+        crate::console::kprintln!("error code {}", error_code);
+        match error_code {
+            0 => io::Error::new(io::ErrorKind::Other,
+                "not an error"),
+            -1 => io::Error::new(io::ErrorKind::TimedOut,
+                "timed out on SD card operation"),
+            -2 => io::Error::new(io::ErrorKind::Other,
+                "error sending commands to the SD card"),
+            _ => io::Error::new(io::ErrorKind::Other,
+                "unknown error"),
+        }
     }
 }
 
@@ -61,7 +101,21 @@ impl BlockDevice for Sd {
     ///
     /// An error of kind `Other` is returned for all other errors.
     fn read_sector(&mut self, n: u64, buf: &mut [u8]) -> io::Result<usize> {
-        unimplemented!("Sd::read_sector()")
+        if buf.len() < 512 {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput,
+                "buffer size is less than 512"))
+        } else if n > 0xFFFFFFFF {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput,
+                "reading from sector number > 0xFFFFFFFF"))
+        }
+
+        unsafe {
+            match sd_readsector(n as i32, buf.as_mut_ptr()) {
+                0 => Err(Sd::err(sd_err)),
+                _ => Ok(512),
+
+            }
+        }
     }
 
     fn write_sector(&mut self, _n: u64, _buf: &[u8]) -> io::Result<usize> {

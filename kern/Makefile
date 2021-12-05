@@ -11,7 +11,7 @@ QEMU_ARGS ?=
 
 all: build
 
-build:
+build: libsd
 	@echo "+ Building build/$(KERN).elf [xbuild/$@]"
 	@cargo xbuild --release
 	@mkdir -p build
@@ -19,6 +19,10 @@ build:
 
 	@echo "+ Building build/$(KERN).bin [objcopy]"
 	@$(OBJCPY) $(TARGET) build/$(KERN).bin
+
+libsd:
+	@echo "+ building libsd.a"
+	cd sd; make;
 
 check:
 	@cargo xcheck

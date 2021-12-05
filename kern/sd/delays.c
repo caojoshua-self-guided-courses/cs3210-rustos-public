@@ -28,6 +28,8 @@
 #define SYSTMR_LO        ((volatile unsigned int*)(MMIO_BASE+0x00003004))
 #define SYSTMR_HI        ((volatile unsigned int*)(MMIO_BASE+0x00003008))
 
+void wait_micros(unsigned int);
+
 /**
  * Wait N CPU cycles (ARM CPU only)
  */
@@ -41,14 +43,16 @@ void wait_cycles(unsigned int n)
  */
 void wait_msec(unsigned int n)
 {
-    register unsigned long f, t, r;
-    // get the current counter frequency
-    asm volatile ("mrs %0, cntfrq_el0" : "=r"(f));
-    // read the current counter
-    asm volatile ("mrs %0, cntpct_el0" : "=r"(t));
-    // calculate expire value for counter
-    t+=((f/1000)*n)/1000;
-    do{asm volatile ("mrs %0, cntpct_el0" : "=r"(r));}while(r<t);
+    wait_micros(n);
+    return;
+    /* register unsigned long f, t, r; */
+    /* // get the current counter frequency */
+    /* asm volatile ("mrs %0, cntfrq_el0" : "=r"(f)); */
+    /* // read the current counter */
+    /* asm volatile ("mrs %0, cntpct_el0" : "=r"(t)); */
+    /* // calculate expire value for counter */
+    /* t+=((f/1000)*n)/1000; */
+    /* do{asm volatile ("mrs %0, cntpct_el0" : "=r"(r));}while(r<t); */
 }
 
 /**

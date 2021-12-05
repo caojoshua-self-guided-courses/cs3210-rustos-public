@@ -24,9 +24,13 @@
  */
 
 #include "gpio.h"
-#include "uart.h"
+/* #include "uart.h" */
 #include "delays.h"
 #include "sd.h"
+
+// We define uart.h functions in rust
+void uart_puts(char *);
+void uart_hex(unsigned int);
 
 #define EMMC_ARG2           ((volatile unsigned int*)(MMIO_BASE+0x00300000))
 #define EMMC_BLKSIZECNT     ((volatile unsigned int*)(MMIO_BASE+0x00300004))

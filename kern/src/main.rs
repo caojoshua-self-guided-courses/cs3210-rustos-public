@@ -20,9 +20,12 @@ pub mod mutex;
 pub mod shell;
 
 use console::kprintln;
+use console::kprint;
 
 use allocator::Allocator;
 use fs::FileSystem;
+use fs::sd::Sd;
+use fat32::traits::BlockDevice;
 
 use alloc::vec::Vec;
 
@@ -36,11 +39,16 @@ fn kmain() -> ! {
         // FILESYSTEM.initialize();
     }
 
-    pi::timer::spin_sleep(core::time::Duration::from_secs(2));
-    let mut v = Vec::new();
-    for i in 0..50 {
-        v.push(i);
-        kprintln!("{:?}", v);
+    kprintln!("reading from sd card");
+    // let mut vec: Vec<u8> = Vec::with_capacity(512);
+    let mut vec = [0; 512];
+    unsafe {
+        let mut sd = Sd::new().unwrap();
+        // let foo = sd.read_sector(0, &mut vec);
+        // let foo = sd.read_sector(0, vec.as_mut_slice());
+    }
+    for byte in vec.iter() {
+        // kprint!("{:x?} ", byte);
     }
 
     kprintln!("Welcome to cs3210!");
