@@ -44,11 +44,11 @@ fn kmain() -> ! {
     let mut vec = [0; 512];
     unsafe {
         let mut sd = Sd::new().unwrap();
-        // let foo = sd.read_sector(0, &mut vec);
+        let foo = sd.read_sector(0, &mut vec);
         // let foo = sd.read_sector(0, vec.as_mut_slice());
     }
     for byte in vec.iter() {
-        // kprint!("{:x?} ", byte);
+        kprint!("{:x?} ", byte);
     }
 
     kprintln!("Welcome to cs3210!");

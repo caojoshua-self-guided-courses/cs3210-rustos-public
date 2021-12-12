@@ -30,7 +30,13 @@ extern "C" {
     /// global. `sd_err` will be set to -1 if a timeout occured or -2 if an
     /// error sending commands to the SD controller occured. Other error codes
     /// are also possible but defined only as being less than zero.
-    fn sd_readsector(n: i32, buffer: *mut u8) -> i32;
+
+    // We are using an external libsd.a, so we cannot use the following.
+    // fn sd_readsector(n: i32, buffer: *mut u8) -> i32;
+
+    // External libsd.a equivalent to sd_readsector. This API also allows
+    // reading multiple sectors.
+    fn sd_readblock(sector_num: u32, buffer: *mut u8, num_sector: u32) -> i32;
 }
 
 // pub static mut wait: Vec<u32> = Vec::new();
@@ -43,7 +49,8 @@ pub static mut index: usize = 0;
 fn wait_micros(us: u32) {
     // Wait multiplier because its needed for some reason. See main readme
     // for more details.
-    let us = us * 100;
+    let us = us * 1000;
+    crate::console::kprintln!("waiting for {} micros", us);
     pi::timer::spin_sleep(core::time::Duration::from_micros(us.into()));
 }
 
@@ -110,7 +117,7 @@ impl BlockDevice for Sd {
         }
 
         unsafe {
-            match sd_readsector(n as i32, buf.as_mut_ptr()) {
+            match sd_readblock(n as u32, buf.as_mut_ptr(), 1) {
                 0 => Err(Sd::err(sd_err)),
                 _ => Ok(512),
 
