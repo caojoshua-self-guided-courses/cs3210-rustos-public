@@ -33,7 +33,7 @@ pub struct VFat<HANDLE: VFatHandle> {
     sectors_per_fat: u32,
     fat_start_sector: u64,
     data_start_sector: u64,
-    root_dir_cluster: Cluster,
+    pub root_dir_cluster: Cluster,
 }
 
 impl<HANDLE: VFatHandle> VFat<HANDLE> {

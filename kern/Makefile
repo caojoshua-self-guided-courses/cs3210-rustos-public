@@ -27,19 +27,24 @@ libsd:
 check:
 	@cargo xcheck
 
-qemu: build
+qemu-resize:
+	# qemu requires that disks are of size 2^N
+	../ext/qemu/build/qemu-img resize ../ext/fat32-imgs/mock1.fat32.img 256M
+
+qemu: qemu-resize build
 	./qemu.sh build/$(KERN).bin -drive file=$(SDCARD),format=raw,if=sd $(QEMU_ARGS)
 
-qemu-gdb: build
+qemu-gdb: qemu-resize build
 	./qemu.sh build/$(KERN).bin -drive file=$(SDCARD),format=raw,if=sd -s -S
 
-qemu-asm: build
+qemu-asm: qemu-resize build
 	./qemu.sh build/$(KERN).bin -drive file=$(SDCARD),format=raw,if=sd -d in_asm
 
 transmit: build
 	@echo "+ Transmitting build/$(KERN).bin to $(TTY_PATH)"
 	sudo ttywrite -i build/$(KERN).bin $(TTY_PATH)
 	sudo screen $(TTY_PATH) 115200
+	# sudo screen -dm bash -c "$(TTY_PATH) 115200	| tee output"
 
 objdump: build
 	cargo objdump -- -disassemble -no-show-raw-insn -print-imm-hex build/$(KERN).elf

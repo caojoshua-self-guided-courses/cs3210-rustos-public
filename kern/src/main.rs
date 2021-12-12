@@ -25,7 +25,7 @@ use console::kprint;
 use allocator::Allocator;
 use fs::FileSystem;
 use fs::sd::Sd;
-use fat32::traits::BlockDevice;
+use fat32::traits::{ BlockDevice, Dir, Entry };
 
 use alloc::vec::Vec;
 
@@ -34,21 +34,18 @@ pub static ALLOCATOR: Allocator = Allocator::uninitialized();
 pub static FILESYSTEM: FileSystem = FileSystem::uninitialized();
 
 fn kmain() -> ! {
+    pi::timer::spin_sleep(core::time::Duration::from_secs(2));
     unsafe {
         ALLOCATOR.initialize();
-        // FILESYSTEM.initialize();
+        FILESYSTEM.initialize();
     }
 
-    kprintln!("reading from sd card");
-    // let mut vec: Vec<u8> = Vec::with_capacity(512);
-    let mut vec = [0; 512];
-    unsafe {
-        let mut sd = Sd::new().unwrap();
-        let foo = sd.read_sector(0, &mut vec);
-        // let foo = sd.read_sector(0, vec.as_mut_slice());
-    }
-    for byte in vec.iter() {
-        kprint!("{:x?} ", byte);
+    kprintln!("root entries:");
+    let root = fat32::traits::FileSystem::open(&FILESYSTEM, shim::path::Path::new("/")).unwrap().into_dir().unwrap();
+    let entries = root.entries().unwrap();
+    kprintln!("done reading root entries");
+    for entry in root.entries().unwrap() {
+        kprintln!("entry: {}", fat32::traits::Entry::name(&entry));
     }
 
     kprintln!("Welcome to cs3210!");

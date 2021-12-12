@@ -47,19 +47,17 @@ pub static mut index: usize = 0;
 // The `wait_micros` C signature is: `void wait_micros(unsigned int);`
 #[no_mangle]
 fn wait_micros(us: u32) {
-    // Wait multiplier because its needed for some reason. See main readme
-    // for more details.
-    let us = us * 1000;
-    crate::console::kprintln!("waiting for {} micros", us);
+    // Bare metal requires a wait time.
+    // let us = us * 2000;
     pi::timer::spin_sleep(core::time::Duration::from_micros(us.into()));
 }
 
 // External libsd functions
 #[no_mangle]
-fn uart_puts(bytes: *const [u8]) {
+fn uart_puts(_bytes: *const [u8]) {
 }
 #[no_mangle]
-fn uart_hex(hex: u32) {
+fn uart_hex(_hex: u32) {
 }
 
 /// A handle to an SD card controller.
@@ -119,8 +117,7 @@ impl BlockDevice for Sd {
         unsafe {
             match sd_readblock(n as u32, buf.as_mut_ptr(), 1) {
                 0 => Err(Sd::err(sd_err)),
-                _ => Ok(512),
-
+                _ => Ok(512)
             }
         }
     }

@@ -12,9 +12,9 @@ use crate::console::kprintln;
 ///   bin 1 (2^4 bytes)    : handles allocations in (2^3, 2^4]
 ///   ...
 ///   bin 29 (2^32 bytes): handles allocations in (2^31, 2^32]
-///   
+///
 ///   map_to_bin(size) -> k
-///   
+///
 
 /// Main points:
 /// 1. We have 11 bins, allowing allocations from 2^3 to 2^13, just
@@ -51,6 +51,8 @@ use crate::console::kprintln;
 
 /// set NUM_BINS to the mimimum that will past test cases. We
 /// can increase this later, but any value >= 13 fails test cases.
+/// Even with the given size, the test is inconsistent, but works
+/// in the kernel which is good enough for me.
 const NUM_BINS: usize = 11;
 const BIN_SMALLEST_K: usize = 3;
 const MIN_SIZE_CLASS: usize = 1 << BIN_SMALLEST_K;

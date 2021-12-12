@@ -186,6 +186,8 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
                 // Insert character into long_filename
                 for char_set in char_sets.iter() {
                     for character in char_set.iter() {
+                        // Dereferencing `character` is causes problems on bare metal,
+                        // but works fine in qemu
                         long_name[lfn_idx as usize] = *character;
                         lfn_idx += 1;
                     }
