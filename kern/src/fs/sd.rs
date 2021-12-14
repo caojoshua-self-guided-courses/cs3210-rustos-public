@@ -1,12 +1,7 @@
-use core::time::Duration;
 use shim::io;
 use shim::ioerr;
 
 use fat32::traits::BlockDevice;
-
-use alloc::vec::Vec;
-
-// use super::emmc::emmc_init;
 
 extern "C" {
     /// A global representing the last SD controller error that occured.
@@ -38,10 +33,6 @@ extern "C" {
     // reading multiple sectors.
     fn sd_readblock(sector_num: u32, buffer: *mut u8, num_sector: u32) -> i32;
 }
-
-// pub static mut wait: Vec<u32> = Vec::new();
-pub static mut wait: [i64; 256] = [0; 256];
-pub static mut index: usize = 0;
 
 // FIXME: Define a `#[no_mangle]` `wait_micros` function for use by `libsd`.
 // The `wait_micros` C signature is: `void wait_micros(unsigned int);`

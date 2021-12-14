@@ -5,8 +5,6 @@ use crate::allocator::linked_list::LinkedList;
 use crate::allocator::util::*;
 use crate::allocator::LocalAlloc;
 
-use crate::console::kprintln;
-
 /// A simple allocator that allocates based on size classes.
 ///   bin 0 (2^3 bytes)    : handles allocations in (0, 2^3]
 ///   bin 1 (2^4 bytes)    : handles allocations in (2^3, 2^4]

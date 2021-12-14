@@ -6,15 +6,11 @@ use alloc::vec::Vec;
 use alloc::string::String;
 
 use shim::io;
-use shim::ioerr;
-use shim::newioerr;
-use shim::path;
 use shim::path::{Component, Path};
 
 use crate::mbr::MasterBootRecord;
 use crate::traits;
 use crate::traits::{BlockDevice, FileSystem};
-use crate::util::{SliceExt, VecExt};
 use crate::vfat::{BiosParameterBlock, CachedPartition, Metadata, Partition};
 use crate::vfat::{Cluster, Dir, Entry, Error, FatEntry, File, Status};
 
@@ -277,7 +273,8 @@ impl<'a, HANDLE: VFatHandle> FileSystem for &'a HANDLE {
             entry = match component {
                 Component::RootDir => self.open_root_dir(),
                 Component::CurDir => continue,
-                // TODO: support parent directories
+                // TODO: could support parent directories, but our shell implementation already
+                // computes parent / `..` from paths before passing to this function.
                 Component::ParentDir => self.open_root_dir(),
                 Component::Normal(name) => {
                     let dir_entry = match traits::Entry::as_dir(&entry) {

@@ -1,6 +1,6 @@
 use alloc::string::String;
 
-use shim::io::{self, SeekFrom, Write};
+use shim::io::{self, SeekFrom};
 
 use crate::traits;
 use crate::vfat::{Cluster, Metadata, VFatHandle};
@@ -27,7 +27,7 @@ impl<HANDLE: VFatHandle> traits::File for File<HANDLE> {
 }
 
 impl<HANDLE: VFatHandle> io::Read for File<HANDLE> {
-    fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let mut bytes_read = self.vfat
             .lock(|vfat| -> io::Result<usize> { vfat.read_chain(self.cluster, self.seek_pos as usize, buf) })?;
 

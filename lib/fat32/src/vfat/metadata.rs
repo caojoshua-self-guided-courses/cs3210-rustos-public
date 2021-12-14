@@ -1,7 +1,5 @@
 use core::fmt;
 
-use alloc::string::String;
-
 use crate::traits;
 use crate::vfat::dir::VFatRegularDirEntry;
 
@@ -32,10 +30,24 @@ pub struct Timestamp {
 /// be used for convenience
 #[derive(Default, Debug, Clone)]
 pub struct Metadata {
-    attributes: Attributes,
+    pub attributes: Attributes,
     create_timestamp: Timestamp,
     last_accessed_date: Date,
     last_modification_timestamp: Timestamp,
+}
+
+impl Attributes {
+    pub fn read_only(&self) -> bool {
+        self.0 & 0x01 != 0
+    }
+
+    pub fn hidden(&self) -> bool {
+        self.0 & 0x02 != 0
+    }
+
+    pub fn is_directory(&self) -> bool {
+        self.0 & 0x10 != 0
+    }
 }
 
 impl From<u16> for Date {

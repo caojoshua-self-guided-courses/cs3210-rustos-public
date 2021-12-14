@@ -1,15 +1,15 @@
 use shim::io;
-use shim::path::{Path, PathBuf};
+use shim::io::Read;
+use shim::path::{Component, PathBuf};
 
 use stack_vec::StackVec;
 
-use pi::atags::Atags;
-
 use fat32::traits::FileSystem;
-use fat32::traits::{Dir, Entry};
+use fat32::traits::{Dir, Entry, File};
+
+use alloc::vec::Vec;
 
 use crate::console::{kprint, kprintln, CONSOLE};
-use crate::ALLOCATOR;
 use crate::FILESYSTEM;
 
 /// Error type for `Command` parse failures.
@@ -57,69 +57,198 @@ impl<'a> Command<'a> {
 const CMD_MAX_CHARS: usize = 512;
 const CMD_MAX_ARGS: usize = 64;
 
-fn read_command<'a>(char_buf: &'a mut [u8], cmd_buf: &'a mut [&'a str]) -> Result<Command<'a>, Error> {
-    let mut raw_command = StackVec::new(char_buf);
-    let mut num_chars: usize = 0;
 
-    // Keep on accepting characters until we see a newline
-    loop {
-        let byte = CONSOLE.lock().read_byte();
-        match byte {
-            // newline
-            b'\r' | b'\n' => {
-                let cmd = core::str::from_utf8(raw_command.into_slice()).unwrap();
-                return Command::parse(cmd, cmd_buf);
-            }
-            // backspace
-            8 | 127 => {
-                if num_chars > 0 {
-                    kprint!("\u{8} \u{8}");
-                    raw_command.pop();
-                    num_chars -= 1;
+
+struct Shell {
+    cwd: PathBuf,
+}
+
+impl Shell {
+
+    pub fn new() -> Shell {
+        Shell { cwd: PathBuf::from("/") }
+    }
+
+    fn read_command<'a>(char_buf: &'a mut [u8], cmd_buf: &'a mut [&'a str]) -> Result<Command<'a>, Error> {
+        let mut raw_command = StackVec::new(char_buf);
+        let mut num_chars: usize = 0;
+
+        // Keep on accepting characters until we see a newline
+        loop {
+            let byte = CONSOLE.lock().read_byte();
+            match byte {
+                // newline
+                b'\r' | b'\n' => {
+                    let cmd = core::str::from_utf8(raw_command.into_slice()).unwrap();
+                    return Command::parse(cmd, cmd_buf);
                 }
-            }
-            // visible characters
-            32 ..= 126 => {
-                if num_chars < CMD_MAX_CHARS {
-                    kprint!("{}", byte as char);
-                    raw_command.push(byte).unwrap();
-                    num_chars += 1;
+                // backspace
+                8 | 127 => {
+                    if num_chars > 0 {
+                        kprint!("\u{8} \u{8}"); raw_command.pop();
+                        num_chars -= 1;
+                    }
                 }
+                // visible characters
+                32 ..= 126 => {
+                    if num_chars < CMD_MAX_CHARS {
+                        kprint!("{}", byte as char);
+                        raw_command.push(byte).unwrap();
+                        num_chars += 1;
+                    }
+                }
+                // ring the bell on non-visible character
+                _ => kprint!("\u{7}"),
             }
-            // ring the bell on non-visible character
-            _ => kprint!("\u{7}"),
+        }
+    }
+
+    // Gets the entries identified by the given path.
+    fn get_entry(&self, path: &str) -> PathBuf {
+        let mut curr = self.cwd.clone();
+        let path = PathBuf::from(path);
+
+        for component in path.components() {
+            match component {
+                Component::RootDir => curr = PathBuf::from("/"),
+                Component::ParentDir => { curr.pop(); },
+                Component::Normal(entry) => curr.push(entry),
+                _ => (), // Nothing to do for `Prefix` or `CurDir`
+            }
+        }
+        curr
+    }
+
+    fn cat(&self, args: &[&str]) {
+        if args.len() == 0 {
+            kprintln!("expected at least one argument");
+        }
+
+        for arg in args {
+            match FILESYSTEM.open(self.get_entry(arg)) {
+                Ok(entry) => match entry.into_file() {
+                    Some(mut file) => {
+                        let mut file_contents = Vec::new();
+                        for _ in 0..file.size() {
+                            file_contents.push(0);
+                        }
+                        match file.read(file_contents.as_mut_slice()) {
+                            Ok(bytes_read) => {
+                                if bytes_read < file.size() as usize {
+                                    kprintln!("Could only read {} of {} bytes in {}",
+                                            bytes_read, file.size(), arg);
+                                } else {
+                                    match core::str::from_utf8(file_contents.as_slice()) {
+                                        Ok(contents) => kprintln!("{}", contents),
+                                        Err(_) => kprintln!("{} contains non-UTF8 characters", arg),
+                                    }
+                                }
+                            }
+                            Err(_) => kprintln!("Error reading the contents of {}", arg),
+                        }
+                    },
+                    None => kprintln!("{} is a directory", arg),
+                }
+                Err(_) => kprintln!("Error opening {}", arg),
+            }
+        }
+    }
+
+    fn cd(&mut self, args: &[&str]) {
+        if args.len() != 1 {
+            kprintln!("cd takes only 1 argument, but received {}", args.len());
+            return;
+        }
+
+        let arg = args[0];
+        if FILESYSTEM.open(self.get_entry(arg)).is_err() {
+            kprintln!("Error opening {}", arg);
+        } else {
+            self.cwd = self.get_entry(arg);
+        }
+    }
+
+    fn echo(&self, args: &[&str]) {
+        for i in 0 .. args.len() - 1 {
+            kprint!("{} ", args[i]);
+        }
+        kprintln!("{}", args[args.len() - 1]);
+    }
+
+    fn ls(&self, mut args: &[&str]) {
+        let mut display_hidden = false;
+        if args.len() > 0 && "-a" == args[0] {
+            display_hidden = true;
+            args = &args[1..];
+        }
+
+        let ls_dir = | path: &PathBuf | {
+            match FILESYSTEM.open(path) {
+                Ok(entry) => match entry.as_dir() {
+                    Some(dir) => {
+                        match dir.entries() {
+                            Ok(entries) => {
+                                for entry in entries {
+                                    if display_hidden || !entry.metadata().attributes.hidden() {
+                                        kprintln!("{}", entry.name());
+                                    }
+                                }
+                            },
+                            Err(_) => kprintln!("Cannot open directory {}", path.to_str().unwrap()),
+                        }
+                    },
+                    None => kprintln!("{}", entry.name()),
+                }
+                Err(_) => kprintln!("Cannot open directory {}", path.to_str().unwrap()),
+            };
+        };
+
+        if args.len() == 0 {
+            // ls in cwd
+            ls_dir(&self.cwd);
+        } else {
+            // ls each argument
+            for arg in args {
+                ls_dir(&self.get_entry(arg));
+            }
+        }
+    }
+
+    fn pwd(&self) {
+        kprintln!("{}", self.cwd.to_str().unwrap());
+    }
+
+    fn execute_command(&mut self, cmd: Command) {
+        let args = &cmd.args.as_slice()[1..];
+        match cmd.path() {
+            "cat" => self.cat(args),
+            "cd" => self.cd(args),
+            "echo" => self.echo(args),
+            "ls" => self.ls(args),
+            "pwd" => self.pwd(),
+            _ => kprintln!("unknown command: {}", cmd.path()),
+        }
+    }
+
+    pub fn shell(&mut self, prefix: &str) -> ! {
+        loop {
+            let char_buf = &mut [0; CMD_MAX_CHARS];
+            let cmd_buf = &mut [""; CMD_MAX_ARGS];
+
+            kprint!("{}", prefix);
+            let cmd = Shell::read_command(char_buf, cmd_buf);
+            kprintln!();
+
+            match cmd {
+                Ok(cmd) => self.execute_command(cmd),
+                Err(Error::TooManyArgs) => kprintln!("too many arguments"),
+                _ => ()
+            }
         }
     }
 }
 
-fn execute_command(cmd: Command) {
-    match cmd.path() {
-        "echo" => {
-            let args = cmd.args.as_slice();
-            for i in 1 .. args.len() - 1 {
-                kprint!("{} ", args[i]);
-            }
-            kprintln!("{}", args[args.len() - 1]);
-        }
-        _ => kprintln!("unknown command: {}", cmd.path()),
-    }
-}
-
-/// Starts a shell using `prefix` as the prefix for each line. This function
-/// never returns.
 pub fn shell(prefix: &str) -> ! {
-    loop {
-        let char_buf = &mut [0; CMD_MAX_CHARS];
-        let cmd_buf = &mut [""; CMD_MAX_ARGS];
-
-        kprint!("{}", prefix);
-        let cmd = read_command(char_buf, cmd_buf);
-        kprintln!();
-
-        match cmd {
-            Ok(cmd) => execute_command(cmd),
-            Err(Error::TooManyArgs) => kprintln!("too many arguments"),
-            _ => ()
-        }
-    }
+    let mut shell = Shell::new();
+    shell.shell(prefix)
 }

@@ -12,7 +12,6 @@ mod tests;
 use core::alloc::{GlobalAlloc, Layout};
 use core::fmt;
 
-use crate::console::kprintln;
 use crate::mutex::Mutex;
 use pi::atags::{Atag, Atags};
 

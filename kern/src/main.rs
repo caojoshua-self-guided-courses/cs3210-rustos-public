@@ -20,14 +20,9 @@ pub mod mutex;
 pub mod shell;
 
 use console::kprintln;
-use console::kprint;
 
 use allocator::Allocator;
 use fs::FileSystem;
-use fs::sd::Sd;
-use fat32::traits::{ BlockDevice, Dir, Entry };
-
-use alloc::vec::Vec;
 
 #[cfg_attr(not(test), global_allocator)]
 pub static ALLOCATOR: Allocator = Allocator::uninitialized();
@@ -38,14 +33,6 @@ fn kmain() -> ! {
     unsafe {
         ALLOCATOR.initialize();
         FILESYSTEM.initialize();
-    }
-
-    kprintln!("root entries:");
-    let root = fat32::traits::FileSystem::open(&FILESYSTEM, shim::path::Path::new("/")).unwrap().into_dir().unwrap();
-    let entries = root.entries().unwrap();
-    kprintln!("done reading root entries");
-    for entry in root.entries().unwrap() {
-        kprintln!("entry: {}", fat32::traits::Entry::name(&entry));
     }
 
     kprintln!("Welcome to cs3210!");

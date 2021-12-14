@@ -7,12 +7,11 @@ use alloc::vec::Vec;
 use shim::const_assert_size;
 use shim::ffi::OsStr;
 use shim::io;
-use shim::newioerr;
 
 use crate::traits;
 use crate::util::VecExt;
-use crate::vfat::{Attributes, Date, Metadata, Time, Timestamp};
-use crate::vfat::{Cluster, Entry, FatEntry, File, VFatHandle};
+use crate::vfat::{Attributes, Date, Metadata, Timestamp};
+use crate::vfat::{Cluster, Entry, File, VFatHandle};
 
 const LONG_FILENAME_MARKER: u8 = 0xF;
 const LONG_FILENAME_MAX_CHARS: u8 = 13;
@@ -236,7 +235,7 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
             let entry_cluster =
                 ((regular.first_cluster_high_16 as u32) << 16) + regular.first_cluster_low_16 as u32;
 
-            let is_directory = regular.attributes.0 & 0x10 != 0;
+            let is_directory = regular.attributes.is_directory();
             entries.push(if is_directory {
                 // TODO: other fields ie. date created, date modified
                 Entry::Dir(Dir {
