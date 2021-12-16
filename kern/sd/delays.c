@@ -43,6 +43,9 @@ void wait_cycles(unsigned int n)
  */
 void wait_msec(unsigned int n)
 {
+    // Not needed to call wait_micros() in QEMU since we don't need to increase
+    // the wait time, but we leave it here in case we want to further debug
+    // on bare metal.
     wait_micros(n);
     return;
     /* register unsigned long f, t, r; */
