@@ -218,19 +218,21 @@ impl Shell {
         kprintln!("{}", self.cwd.to_str().unwrap());
     }
 
-    fn execute_command(&mut self, cmd: Command) {
+    fn execute_command(&mut self, cmd: Command) -> bool {
         let args = &cmd.args.as_slice()[1..];
         match cmd.path() {
             "cat" => self.cat(args),
             "cd" => self.cd(args),
             "echo" => self.echo(args),
+            "exit" => return false,
             "ls" => self.ls(args),
             "pwd" => self.pwd(),
             _ => kprintln!("unknown command: {}", cmd.path()),
         }
+        true
     }
 
-    pub fn shell(&mut self, prefix: &str) -> ! {
+    pub fn shell(&mut self, prefix: &str) {
         loop {
             let char_buf = &mut [0; CMD_MAX_CHARS];
             let cmd_buf = &mut [""; CMD_MAX_ARGS];
@@ -240,7 +242,11 @@ impl Shell {
             kprintln!();
 
             match cmd {
-                Ok(cmd) => self.execute_command(cmd),
+                Ok(cmd) => {
+                    if !self.execute_command(cmd) {
+                        return
+                    }
+                }
                 Err(Error::TooManyArgs) => kprintln!("too many arguments"),
                 _ => ()
             }
@@ -248,7 +254,7 @@ impl Shell {
     }
 }
 
-pub fn shell(prefix: &str) -> ! {
+pub fn shell(prefix: &str) {
     let mut shell = Shell::new();
     shell.shell(prefix)
 }

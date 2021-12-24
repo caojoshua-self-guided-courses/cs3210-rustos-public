@@ -47,9 +47,18 @@ fn kmain() -> ! {
     }
 
     unsafe {
-        kprintln!("current exception level: {}", aarch64::current_el());
+        // Testing various exceptions
+        aarch64::brk!(2);
+        // aarch64::svc!(3);
+        // kprintln!("{}", *(0x00000000 as *const u64))
+        // kprintln!("{}", *(0xFFFFFFFF as *const u64))
+        // kprintln!("{}", *(0xFFFFFFFFFFFFFFFF as *const u64))
     }
 
     kprintln!("Welcome to cs3210!");
     shell::shell("> ");
+
+    loop {
+        aarch64::nop()
+    }
 }
