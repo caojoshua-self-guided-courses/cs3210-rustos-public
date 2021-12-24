@@ -46,6 +46,10 @@ fn kmain() -> ! {
         FILESYSTEM.initialize();
     }
 
+    unsafe {
+        kprintln!("current exception level: {}", aarch64::current_el());
+    }
+
     kprintln!("Welcome to cs3210!");
     shell::shell("> ");
 }
