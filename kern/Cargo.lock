@@ -68,6 +68,7 @@ dependencies = [
  "ahash 0.2.18 (git+https://github.com/tkaitchuck/aHash?rev=e3b03e888d277cde7f6178813e594d72b89e3ccb)",
  "const-random 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "const-random-macro 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "core_io 0.1.20190701 (registry+https://github.com/rust-lang/crates.io-index)",
  "hashbrown 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "shim 0.1.0",
 ]

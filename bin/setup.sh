@@ -36,7 +36,7 @@ if ! [ -x "$(command -v rustup)" ]; then
     export PATH=$HOME/.cargo/bin:$PATH
 fi
 
-rustup default $VER
+rustup override set $VER
 rustup component add rust-src llvm-tools-preview clippy
 
 # install cargo xbuild

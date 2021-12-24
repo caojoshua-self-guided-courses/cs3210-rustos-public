@@ -12,6 +12,7 @@ edition = "2018"
 
 [dependencies]
 shim = { path = "../shim", features = ["alloc"] }
+core_io = "=0.1.20190701"
 # ahash 2.18. Need to pull directly from github because this version
 # was yanked. Idk why this works, but if it builds then it builds ;)
 ahash = { git = "https://github.com/tkaitchuck/aHash", rev = "e3b03e888d277cde7f6178813e594d72b89e3ccb" }
