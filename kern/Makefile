@@ -45,7 +45,6 @@ transmit: build
 	@echo "+ Transmitting build/$(KERN).bin to $(TTY_PATH)"
 	sudo ttywrite -i build/$(KERN).bin $(TTY_PATH)
 	sudo screen $(TTY_PATH) 115200
-	# sudo screen -dm bash -c "$(TTY_PATH) 115200	| tee output"
 
 objdump: build
 	cargo objdump -- -disassemble -no-show-raw-insn -print-imm-hex build/$(KERN).elf

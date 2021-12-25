@@ -67,7 +67,6 @@ impl From<u32> for Syndrome {
         // We are interested in bits 26:31
         let bits = esr >> 26;
 
-        // TODO: use REG::get_value()
         match bits {
             0b000000 => Unknown,
             0b000001 => WfiWfe,
@@ -86,10 +85,7 @@ impl From<u32> for Syndrome {
             0b110000 | 0b110001 => Breakpoint,
             0b110010 | 0b110011 => Step,
             0b110100 | 0b110101 => Watchpoint,
-            0b111100 => {
-                crate::shell::shell("brk > ");
-                Brk(esr as u16)
-            },
+            0b111100 => Brk(esr as u16),
             _ => Other(esr),
         }
     }
