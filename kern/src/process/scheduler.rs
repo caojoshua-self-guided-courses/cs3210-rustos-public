@@ -6,7 +6,7 @@ use aarch64::*;
 
 use crate::mutex::Mutex;
 use crate::param::{PAGE_MASK, PAGE_SIZE, TICK, USER_IMG_BASE};
-use crate::process::{Id, Process, State};
+use crate::process::{Id, Process, Stack, State};
 use crate::traps::TrapFrame;
 use crate::VMM;
 
@@ -66,7 +66,29 @@ impl GlobalScheduler {
     /// Starts executing processes in user space using timer interrupt based
     /// preemptive scheduling. This method should not return under normal conditions.
     pub fn start(&self) -> ! {
-        unimplemented!("GlobalScheduler::start()")
+        let mut process = Process::new().unwrap();
+        process.context.link_addr = start_shell as u64;
+        process.context.pstate = 0;
+        process.context.sp = &process.stack as *const Stack as u64;
+
+        // Set the exception level to 0 (second/third bit).
+        process.context.pstate &= !0b1100;
+
+        // Unmask IRQ (7'th bit).
+        process.context.pstate &= !(0b01 << 7);
+
+        unsafe {
+            asm!("mov sp, $0
+                bl context_restore
+                ldr x0, =_start
+                mov sp, x0
+                mov x0, #0
+                eret"
+                :: "r"(process.context)
+                :: "volatile");
+        }
+
+        loop {}
     }
 
     /// Initializes the scheduler and add userspace processes to the Scheduler
@@ -164,3 +186,6 @@ pub extern "C" fn  test_user_process() -> ! {
     }
 }
 
+pub extern "C" fn start_shell() {
+    crate::shell::shell("> ");
+}

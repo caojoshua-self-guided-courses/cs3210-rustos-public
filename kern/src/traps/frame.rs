@@ -5,11 +5,11 @@ use shim::const_assert_size;
 #[derive(Default, Copy, Clone, Debug)]
 pub struct TrapFrame {
     pub link_addr: u64,
-    pstate: u64,
-    sp: u64,
+    pub pstate: u64,
+    pub sp: u64,
     tpidr: u64,
     simd_reg: [u128; 32],
-    pub gen_reg: [u64; 32],
+    gen_reg: [u64; 32],
 }
 
 const_assert_size!(TrapFrame, 800);

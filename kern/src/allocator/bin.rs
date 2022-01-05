@@ -47,11 +47,8 @@ use crate::allocator::LocalAlloc;
 /// only need to align up to 16 anyway. It should be doable
 /// to decouple max size class and alignment.
 
-/// set NUM_BINS to the mimimum that will past test cases. We
-/// can increase this later, but any value >= 13 fails test cases.
-/// Even with the given size, the test is inconsistent, but works
-/// in the kernel which is good enough for me.
-const NUM_BINS: usize = 11;
+/// NUM_BINS >= 11 has flaky performance in tests, but works fine in the kernel. Needs to be at least 20 to allocate process stacks.
+const NUM_BINS: usize = 20;
 const BIN_SMALLEST_K: usize = 3;
 const MIN_SIZE_CLASS: usize = 1 << BIN_SMALLEST_K;
 const MAX_SIZE_CLASS: usize = 1 << (NUM_BINS + BIN_SMALLEST_K - 1);

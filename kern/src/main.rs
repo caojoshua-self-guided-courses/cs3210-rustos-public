@@ -40,25 +40,9 @@ pub static VMM: VMManager = VMManager::uninitialized();
 pub static IRQ: Irq = Irq::uninitialized();
 
 fn kmain() -> ! {
-    pi::timer::spin_sleep(core::time::Duration::from_secs(2));
     unsafe {
         ALLOCATOR.initialize();
         FILESYSTEM.initialize();
-    }
-
-    unsafe {
-        // Testing various exceptions
-        aarch64::brk!(2);
-        // aarch64::svc!(3);
-        // kprintln!("{}", *(0x00000000 as *const u64))
-        // kprintln!("{}", *(0xFFFFFFFF as *const u64))
-        // kprintln!("{}", *(0xFFFFFFFFFFFFFFFF as *const u64))
-    }
-
-    kprintln!("Welcome to cs3210!");
-    shell::shell("> ");
-
-    loop {
-        aarch64::nop()
+        SCHEDULER.start();
     }
 }
