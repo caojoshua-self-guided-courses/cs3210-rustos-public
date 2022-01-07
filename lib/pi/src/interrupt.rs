@@ -76,7 +76,16 @@ impl From<usize> for Interrupt {
 #[repr(C)]
 #[allow(non_snake_case)]
 struct Registers {
-    // FIXME: Fill me in.
+    pending_basic: Volatile<u32>,
+    pending1: Volatile<u32>,
+    pending2: Volatile<u32>,
+    fiq_ctrl: Volatile<u32>,
+    enable_irqs1: Volatile<u32>,
+    enable_irqs2: Volatile<u32>,
+    enable_irqs_basic: Volatile<u32>,
+    disable_irqs1: Volatile<u32>,
+    disable_irqs2: Volatile<u32>,
+    disable_irqs_basic: Volatile<u32>,
 }
 
 /// An interrupt controller. Used to enable and disable interrupts as well as to
@@ -95,16 +104,33 @@ impl Controller {
 
     /// Enables the interrupt `int`.
     pub fn enable(&mut self, int: Interrupt) {
-        unimplemented!()
+        let int = int as usize;
+        if int <= 31 {
+            self.registers.enable_irqs1.or_mask(1 << int);
+        } else if int <= 63 {
+            self.registers.enable_irqs2.or_mask(1 << (int - 31));
+        }
     }
 
     /// Disables the interrupt `int`.
     pub fn disable(&mut self, int: Interrupt) {
-        unimplemented!()
+        let int = int as usize;
+        if int <= 31 {
+            self.registers.disable_irqs1.or_mask(1 << int);
+        } else if int <= 63 {
+            self.registers.disable_irqs2.or_mask(1 << (int - 31));
+        }
     }
 
     /// Returns `true` if `int` is pending. Otherwise, returns `false`.
     pub fn is_pending(&self, int: Interrupt) -> bool {
-        unimplemented!()
+        let int = int as usize;
+        if int <= 31 {
+            self.registers.pending1.has_mask(1 << int)
+        } else if int <= 63 {
+            self.registers.pending2.has_mask(1 << (int - 31))
+        } else {
+            false
+        }
     }
 }

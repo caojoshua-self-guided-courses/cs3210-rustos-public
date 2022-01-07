@@ -4,11 +4,14 @@ use core::fmt;
 
 use aarch64::*;
 
+use pi::interrupt::{Controller, Interrupt};
+use pi::timer::{current_time, tick_in};
+
 use crate::mutex::Mutex;
 use crate::param::{PAGE_MASK, PAGE_SIZE, TICK, USER_IMG_BASE};
 use crate::process::{Id, Process, Stack, State};
 use crate::traps::TrapFrame;
-use crate::VMM;
+use crate::{IRQ, VMM};
 
 /// Process scheduler for the entire machine.
 #[derive(Debug)]
@@ -76,6 +79,11 @@ impl GlobalScheduler {
 
         // Unmask IRQ (7'th bit).
         process.context.pstate &= !(0b01 << 7);
+
+        // Setup timer interrupts.
+        Controller::new().enable(Interrupt::Timer1);
+        tick_in(TICK);
+        IRQ.register(Interrupt::Timer1, Box::new(timer1_handler));
 
         unsafe {
             asm!("mov sp, $0
@@ -188,4 +196,10 @@ pub extern "C" fn  test_user_process() -> ! {
 
 pub extern "C" fn start_shell() {
     crate::shell::shell("> ");
+}
+
+// Only being called the first time. do we need to do something with exceptions in handle_exception?
+fn timer1_handler(tf: &mut TrapFrame) {
+    tick_in(current_time() + TICK);
+    crate::console::kprintln!("timer1_handler()");
 }

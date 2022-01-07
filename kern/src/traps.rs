@@ -7,6 +7,9 @@ pub use self::frame::TrapFrame;
 
 use pi::interrupt::{Controller, Interrupt};
 
+use crate::console::kprintln;
+use crate::IRQ;
+
 use self::syndrome::Syndrome;
 use self::syscall::handle_syscall;
 
@@ -43,12 +46,22 @@ pub struct Info {
 pub extern "C" fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
     if info.kind == Kind::Synchronous {
         let syndrome = Syndrome::from(esr);
-        crate::console::kprintln!("exception: {:#?}", info);
-        crate::console::kprintln!("syndrome: {:#?}", syndrome);
+        kprintln!("exception: {:#?}", info);
+        kprintln!("syndrome: {:#?}", syndrome);
         crate::shell::shell("exception > ");
+
+        // We increment the PC only for synchronous calls because we want to jump to the
+        // instruction after the one that generated the exception.
         tf.increment_link_addr(4);
+    } else if info.kind == Kind::Irq {
+        let controller = Controller::new();
+        for interrupt in Interrupt::iter() {
+            if controller.is_pending(*interrupt) {
+                IRQ.invoke(*interrupt, tf);
+            }
+        }
     } else {
-        crate::console::kprintln!("handle_exception: {:#?}", info);
+        kprintln!("handle_exception: {:#?}", info);
         loop {
             aarch64::nop();
         }
