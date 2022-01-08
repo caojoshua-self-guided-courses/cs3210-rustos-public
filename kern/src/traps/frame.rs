@@ -7,7 +7,7 @@ pub struct TrapFrame {
     pub link_addr: u64,
     pub pstate: u64,
     pub sp: u64,
-    tpidr: u64,
+    pub tpidr: u64,
     simd_reg: [u128; 32],
     gen_reg: [u64; 32],
 }

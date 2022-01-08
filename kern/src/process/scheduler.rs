@@ -69,16 +69,9 @@ impl GlobalScheduler {
     /// Starts executing processes in user space using timer interrupt based
     /// preemptive scheduling. This method should not return under normal conditions.
     pub fn start(&self) -> ! {
-        let mut process = Process::new().unwrap();
-        process.context.link_addr = start_shell as u64;
-        process.context.pstate = 0;
-        process.context.sp = &process.stack as *const Stack as u64;
-
-        // Set the exception level to 0 (second/third bit).
-        process.context.pstate &= !0b1100;
-
-        // Unmask IRQ (7'th bit).
-        process.context.pstate &= !(0b01 << 7);
+        // Start the first process and get the trap frame.
+        let mut tf = TrapFrame::default();
+        self.critical(|scheduler| scheduler.switch_to(&mut tf));
 
         // Setup timer interrupts.
         Controller::new().enable(Interrupt::Timer1);
@@ -92,7 +85,7 @@ impl GlobalScheduler {
                 mov sp, x0
                 mov x0, #0
                 eret"
-                :: "r"(process.context)
+                :: "r"(&tf)
                 :: "volatile");
         }
 
@@ -101,7 +94,28 @@ impl GlobalScheduler {
 
     /// Initializes the scheduler and add userspace processes to the Scheduler
     pub unsafe fn initialize(&self) {
-        unimplemented!("GlobalScheduler::initialize()")
+        // Initialize the scheduler.
+        *self.0.lock() = Some(Scheduler::new());
+
+        // Add initial userspace processes.
+        fn new_process(function: u64) -> Process {
+            let mut process = Process::new().unwrap();
+            process.context.link_addr = function;
+            process.context.pstate = 0;
+            process.context.sp = &process.stack as *const Stack as u64;
+
+            // Set the exception level to 0 (second/third bit).
+            process.context.pstate &= !0b1100;
+
+            // Unmask IRQ (7'th bit).
+            process.context.pstate &= !(0b01 << 7);
+
+            process
+        }
+
+        self.add(new_process(start_shell as u64));
+        self.add(new_process(start_shell2 as u64));
+        self.add(new_process(start_shell3 as u64));
     }
 
     // The following method may be useful for testing Phase 3:
@@ -131,7 +145,10 @@ pub struct Scheduler {
 impl Scheduler {
     /// Returns a new `Scheduler` with an empty queue.
     fn new() -> Scheduler {
-        unimplemented!("Scheduler::new()")
+        Scheduler {
+            processes: VecDeque::new(),
+            last_id: Some(0),
+        }
     }
 
     /// Adds a process to the scheduler's queue and returns that process's ID if
@@ -142,7 +159,16 @@ impl Scheduler {
     /// It is the caller's responsibility to ensure that the first time `switch`
     /// is called, that process is executing on the CPU.
     fn add(&mut self, mut process: Process) -> Option<Id> {
-        unimplemented!("Scheduler::add()")
+        let id = match self.last_id {
+            Some(last_id) => last_id,
+            None => 0,
+        };
+
+        process.context.tpidr = id;
+        self.processes.push_back(process);
+        self.last_id = Some(id + 1);
+
+        Some(id)
     }
 
     /// Finds the currently running process, sets the current process's state
@@ -153,7 +179,27 @@ impl Scheduler {
     /// If the `processes` queue is empty or there is no current process,
     /// returns `false`. Otherwise, returns `true`.
     fn schedule_out(&mut self, new_state: State, tf: &mut TrapFrame) -> bool {
-        unimplemented!("Scheduler::schedule_out()")
+        // Get the current running process on this processor core by matching the process id.
+        let mut curr_process = None;
+        let mut index = 0;
+        for process in &mut self.processes {
+            if process.context.tpidr == tf.tpidr {
+                curr_process = self.processes.remove(index);
+                break;
+            }
+            index += 1;
+        }
+
+        let mut curr_process = match curr_process {
+            Some(process) => process,
+            None => return false,
+        };
+
+        *tf = *curr_process.context;
+        curr_process.state = new_state;
+        self.processes.push_back(curr_process);
+
+        true
     }
 
     /// Finds the next process to switch to, brings the next process to the
@@ -164,14 +210,33 @@ impl Scheduler {
     /// If there is no process to switch to, returns `None`. Otherwise, returns
     /// `Some` of the next process`s process ID.
     fn switch_to(&mut self, tf: &mut TrapFrame) -> Option<Id> {
-        unimplemented!("Scheduler::switch_to()")
+        let mut next_process = None;
+        for process in &mut self.processes {
+            if process.is_ready() {
+                next_process = Some(process);
+                break;
+            }
+        }
+
+        let next_process = match next_process {
+            Some(process) => process,
+            None => return None,
+        };
+
+        next_process.state = State::Running;
+        *tf = *next_process.context;
+        Some(tf.tpidr)
     }
 
     /// Kills currently running process by scheduling out the current process
     /// as `Dead` state. Removes the dead process from the queue, drop the
     /// dead process's instance, and returns the dead process's process ID.
     fn kill(&mut self, tf: &mut TrapFrame) -> Option<Id> {
-        unimplemented!("Scheduler::kill()")
+        self.schedule_out(State::Dead, tf);
+        match self.processes.pop_back() {
+            Some(process) => Some(process.context.tpidr),
+            None => None
+        }
     }
 }
 
@@ -195,11 +260,17 @@ pub extern "C" fn  test_user_process() -> ! {
 }
 
 pub extern "C" fn start_shell() {
-    crate::shell::shell("> ");
+    crate::shell::shell("shell1 > ");
+}
+pub extern "C" fn start_shell2() {
+    crate::shell::shell("shell2 > ");
+}
+pub extern "C" fn start_shell3() {
+    crate::shell::shell("shell3 > ");
 }
 
-// Only being called the first time. do we need to do something with exceptions in handle_exception?
 fn timer1_handler(tf: &mut TrapFrame) {
     tick_in(current_time() + TICK);
-    crate::console::kprintln!("timer1_handler()");
+    crate::console::kprintln!("\ntimer1_handler()");
+    crate::SCHEDULER.switch(State::Ready, tf);
 }

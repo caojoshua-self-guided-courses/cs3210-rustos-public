@@ -109,6 +109,25 @@ impl Process {
     ///
     /// Returns `false` in all other cases.
     pub fn is_ready(&mut self) -> bool {
-        unimplemented!("Process::is_ready()")
+        if let State::Waiting(event_poll_fn) = &mut self.state {
+            // Need to use mem::replace because we can't use original event_poll_fn, because it
+            // borrows self, and we are already borrowing state from self.
+            let mut event_poll_fn_copy = core::mem::replace(event_poll_fn, Box::new(|_| false));
+
+            if event_poll_fn_copy(self) {
+                self.state = State::Ready;
+            }
+
+            // Reset the polling function. Can't reuse event_poll_fn because it is borrowed from
+            // state, and the copy also borrows self.
+            if let State::Waiting(event_poll_fn) = &mut self.state {
+                core::mem::replace(event_poll_fn, event_poll_fn_copy);
+            }
+        }
+
+        match self.state {
+            State::Ready => true,
+            _ => false,
+        }
     }
 }
