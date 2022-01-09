@@ -1,3 +1,6 @@
+use core::str::FromStr;
+use core::time::Duration;
+
 use shim::io;
 use shim::io::Read;
 use shim::path::{Component, PathBuf};
@@ -8,6 +11,8 @@ use fat32::traits::FileSystem;
 use fat32::traits::{Dir, Entry, File};
 
 use alloc::vec::Vec;
+
+use kernel_api::syscall::sleep;
 
 use crate::console::{kprint, kprintln, CONSOLE};
 use crate::FILESYSTEM;
@@ -214,6 +219,17 @@ impl Shell {
         }
     }
 
+    fn sleep(&self, args: &[&str]) {
+        if args.len() < 1 {
+            return
+        }
+
+        match u64::from_str(args[0]) {
+            Ok(millis) => sleep(Duration::from_millis(millis)),
+            Err(_) => return,
+        };
+    }
+
     fn pwd(&self) {
         kprintln!("{}", self.cwd.to_str().unwrap());
     }
@@ -226,6 +242,7 @@ impl Shell {
             "echo" => self.echo(args),
             "exit" => return false,
             "ls" => self.ls(args),
+            "sleep" => self.sleep(args),
             "pwd" => self.pwd(),
             _ => kprintln!("unknown command: {}", cmd.path()),
         }

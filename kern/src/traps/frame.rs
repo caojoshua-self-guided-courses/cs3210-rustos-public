@@ -9,7 +9,7 @@ pub struct TrapFrame {
     pub sp: u64,
     pub tpidr: u64,
     simd_reg: [u128; 32],
-    gen_reg: [u64; 32],
+    pub gen_reg: [u64; 32],
 }
 
 const_assert_size!(TrapFrame, 800);

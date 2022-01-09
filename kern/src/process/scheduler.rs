@@ -102,7 +102,7 @@ impl GlobalScheduler {
             let mut process = Process::new().unwrap();
             process.context.link_addr = function;
             process.context.pstate = 0;
-            process.context.sp = &process.stack as *const Stack as u64;
+            process.context.sp = process.stack.top().as_usize() as u64;
 
             // Set the exception level to 0 (second/third bit).
             process.context.pstate &= !0b1100;
@@ -180,26 +180,18 @@ impl Scheduler {
     /// returns `false`. Otherwise, returns `true`.
     fn schedule_out(&mut self, new_state: State, tf: &mut TrapFrame) -> bool {
         // Get the current running process on this processor core by matching the process id.
-        let mut curr_process = None;
-        let mut index = 0;
-        for process in &mut self.processes {
+        for i in 0..self.processes.len() {
+            let process = &mut self.processes[i];
             if process.context.tpidr == tf.tpidr {
-                curr_process = self.processes.remove(index);
-                break;
+                *process.context = *tf;
+                process.state = new_state;
+                let process = self.processes.remove(i).unwrap();
+                self.processes.push_back(process);
+                return true;
             }
-            index += 1;
         }
 
-        let mut curr_process = match curr_process {
-            Some(process) => process,
-            None => return false,
-        };
-
-        *tf = *curr_process.context;
-        curr_process.state = new_state;
-        self.processes.push_back(curr_process);
-
-        true
+        false
     }
 
     /// Finds the next process to switch to, brings the next process to the

@@ -46,13 +46,20 @@ pub struct Info {
 pub extern "C" fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
     if info.kind == Kind::Synchronous {
         let syndrome = Syndrome::from(esr);
-        kprintln!("exception: {:#?}", info);
-        kprintln!("syndrome: {:#?}", syndrome);
-        crate::shell::shell("exception > ");
+        match syndrome {
+            Syndrome::Svc(num) => handle_syscall(num, tf),
+            _ => {
+                // Print out info for non syscall synchronous exceptions.
+                kprintln!("handle_exception: {:#?}", info);
+                kprintln!("syndrome: {:#?}", syndrome);
+                crate::shell::shell("exception > ");
 
-        // We increment the PC only for synchronous calls because we want to jump to the
-        // instruction after the one that generated the exception.
-        tf.increment_link_addr(4);
+                // We increment the PC only for non-syscall synchronous calls because we want to
+                // jump to the instruction after the one that generated the exception.
+                tf.increment_link_addr(4);
+            },
+        }
+
     } else if info.kind == Kind::Irq {
         let controller = Controller::new();
         for interrupt in Interrupt::iter() {
