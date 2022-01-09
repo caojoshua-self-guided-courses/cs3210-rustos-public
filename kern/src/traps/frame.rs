@@ -8,11 +8,13 @@ pub struct TrapFrame {
     pub pstate: u64,
     pub sp: u64,
     pub tpidr: u64,
+    pub ttbr0: u64,
+    pub ttbr1: u64,
     simd_reg: [u128; 32],
     pub gen_reg: [u64; 32],
 }
 
-const_assert_size!(TrapFrame, 800);
+const_assert_size!(TrapFrame, 816);
 
 impl TrapFrame {
     pub fn increment_link_addr(&mut self, increment: u64) {

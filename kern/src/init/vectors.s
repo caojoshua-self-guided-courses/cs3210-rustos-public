@@ -36,6 +36,10 @@ context_save:
     stp q0, q1, [SP, #-32]!
 
     // Push special registers.
+    mrs x0, TTBR0_EL1
+    mrs x1, TTBR1_EL1
+    stp x0, x1, [SP, #-16]!
+
     mrs x0, SP_EL0
     mrs x1, TPIDR_EL0
     stp x0, x1, [SP, #-16]!
@@ -70,6 +74,17 @@ context_restore:
     ldp x0, x1, [SP], #16
     msr SP_EL0, x0
     msr TPIDR_EL0, x1
+
+    ldp x0, x1, [SP], #16
+    msr TTBR0_EL1, x0
+    msr TTBR1_EL1, x1
+
+    // This block ensures that memory operations before the `dsb` are completed before the
+    // completion of the dsb instruction. From the course website.
+    dsb     ishst
+    tlbi    vmalle1
+    dsb     ish
+    isb
 
     // Load SIMD registers.
     ldp q0, q1, [SP], #32
@@ -124,6 +139,7 @@ context_restore:
 .align 11
 .global vectors
 vectors:
+    // FIXME: Setup the 16 exception vectors.
     HANDLER 0, 0
     HANDLER 0, 1
     HANDLER 0, 2
