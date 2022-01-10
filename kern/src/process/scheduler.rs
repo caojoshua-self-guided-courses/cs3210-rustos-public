@@ -75,8 +75,8 @@ impl GlobalScheduler {
 
         // Setup timer interrupts.
         Controller::new().enable(Interrupt::Timer1);
-        tick_in(TICK);
         IRQ.register(Interrupt::Timer1, Box::new(timer1_handler));
+        tick_in(TICK);
 
         unsafe {
             asm!("mov sp, $0
@@ -92,48 +92,55 @@ impl GlobalScheduler {
         loop {}
     }
 
+    fn add_process(&self, function: u64) {
+        let mut process = Process::new().unwrap();
+
+        // process.context.link_addr = function;
+        process.context.link_addr = test_user_process as u64;
+        process.context.pstate = 0;
+        process.context.sp = process.stack.top().as_usize() as u64;
+        process.context.ttbr0 = VMM.get_baddr().as_u64();
+        process.context.ttbr1 = process.vmap.get_baddr().as_u64();
+
+        // Set the exception level to 0 (second/third bit).
+        process.context.pstate &= !0b1100;
+
+        // Unmask IRQ (7'th bit).
+        process.context.pstate &= !(0b01 << 7);
+
+        self.test_phase_3(&mut process);
+
+        self.add(process);
+    }
+
     /// Initializes the scheduler and add userspace processes to the Scheduler
     pub unsafe fn initialize(&self) {
         // Initialize the scheduler.
         *self.0.lock() = Some(Scheduler::new());
 
         // Add initial userspace processes.
-        fn new_process(function: u64) -> Process {
-            let mut process = Process::new().unwrap();
-            process.context.link_addr = function;
-            process.context.pstate = 0;
-            process.context.sp = process.stack.top().as_usize() as u64;
-
-            // Set the exception level to 0 (second/third bit).
-            process.context.pstate &= !0b1100;
-
-            // Unmask IRQ (7'th bit).
-            process.context.pstate &= !(0b01 << 7);
-
-            process
-        }
-
-        self.add(new_process(start_shell as u64));
-        self.add(new_process(start_shell2 as u64));
-        self.add(new_process(start_shell3 as u64));
+        // self.add(self.new_process(start_shell as u64));
+        self.add_process(start_shell as u64);
+        // self.add(new_process(start_shell2 as u64));
+        // self.add(new_process(start_shell3 as u64));
     }
 
     // The following method may be useful for testing Phase 3:
     //
     // * A method to load a extern function to the user process's page table.
     //
-    // pub fn test_phase_3(&self, proc: &mut Process){
-    //     use crate::vm::{VirtualAddr, PagePerm};
-    //
-    //     let mut page = proc.vmap.alloc(
-    //         VirtualAddr::from(USER_IMG_BASE as u64), PagePerm::RWX);
-    //
-    //     let text = unsafe {
-    //         core::slice::from_raw_parts(test_user_process as *const u8, 24)
-    //     };
-    //
-    //     page[0..24].copy_from_slice(text);
-    // }
+     pub fn test_phase_3(&self, proc: &mut Process){
+         use crate::vm::{VirtualAddr, PagePerm};
+
+         let mut page = proc.vmap.alloc(
+             VirtualAddr::from(USER_IMG_BASE as u64), PagePerm::RWX);
+
+         let text = unsafe {
+             core::slice::from_raw_parts(test_user_process as *const u8, 24)
+         };
+
+         page[0..24].copy_from_slice(text);
+     }
 }
 
 #[derive(Debug)]

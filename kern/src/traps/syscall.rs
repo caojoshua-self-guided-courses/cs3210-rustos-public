@@ -21,6 +21,7 @@ use kernel_api::*;
 /// process runs for a minimum time before scheduling it out, which would be typical in a
 /// round-robin scheduler. But I'm okay with this behavior cause it works.
 pub fn sys_sleep(ms: u32, tf: &mut TrapFrame) {
+    crate::console::kprintln!("sleep for {} ms", ms);
     let start = current_time();
     let end = start + Duration::from_millis(ms.into());
     let boxed_fnmut = Box::new(move |p: &mut Process| -> bool {

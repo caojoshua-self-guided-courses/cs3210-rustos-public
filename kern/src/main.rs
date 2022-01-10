@@ -24,8 +24,6 @@ pub mod process;
 pub mod traps;
 pub mod vm;
 
-use console::kprintln;
-
 use allocator::Allocator;
 use fs::FileSystem;
 use process::GlobalScheduler;
@@ -44,6 +42,7 @@ fn kmain() -> ! {
         ALLOCATOR.initialize();
         FILESYSTEM.initialize();
         IRQ.initialize();
+        VMM.initialize();
         SCHEDULER.initialize();
         SCHEDULER.start();
     }

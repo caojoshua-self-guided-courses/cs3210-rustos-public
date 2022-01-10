@@ -227,7 +227,7 @@ impl Shell {
         match u64::from_str(args[0]) {
             Ok(millis) => sleep(Duration::from_millis(millis)),
             Err(_) => return,
-        };
+        }.unwrap();
     }
 
     fn pwd(&self) {
