@@ -195,7 +195,7 @@ impl KernPageTable {
     /// more details.
     pub fn new() -> KernPageTable {
         let mut page_table = PageTable::new(EntryPerm::KERN_RW);
-        let (_, memory_end) = crate::allocator::memory_map().unwrap();
+        let (_, memory_end) = allocator::memory_map().unwrap();
 
         let mut entry = RawL3Entry::new(0);
         entry.set_value(EntryValid::Valid, RawL3Entry::VALID)
@@ -333,6 +333,7 @@ impl Drop for UserPageTable {
 
 impl fmt::Debug for UserPageTable {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("UserPageTable")?;
         Ok(())
     }
 }

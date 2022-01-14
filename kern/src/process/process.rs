@@ -1,9 +1,6 @@
 use alloc::boxed::Box;
-use shim::io;
 use shim::io::Read;
 use shim::path::Path;
-
-use aarch64;
 
 use fat32::traits::{Entry, File, FileSystem};
 
@@ -98,7 +95,7 @@ impl Process {
 
         while addr < end_addr {
             let bytes = p.vmap.alloc(VirtualAddr::from(addr), PagePerm::RWX);
-            let bytes_read = file.read(bytes)?;
+            file.read(bytes)?;
             addr += PAGE_SIZE;
         }
 
@@ -121,7 +118,6 @@ impl Process {
     pub fn get_stack_base() -> VirtualAddr {
         // Set the stack base to be the address of the last page. Make sure the result is aligned
         // by the page_size, even though it should already be aligned by hard coded values.
-        let page_size = VirtualAddr::from(PAGE_SIZE);
         Process::get_max_va() - VirtualAddr::from(PAGE_SIZE) + VirtualAddr::from(1) &
             VirtualAddr::from(!(PAGE_SIZE - 1))
     }

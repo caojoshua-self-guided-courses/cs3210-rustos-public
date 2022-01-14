@@ -1,5 +1,4 @@
 use shim::io;
-use shim::ioerr;
 
 use fat32::traits::BlockDevice;
 

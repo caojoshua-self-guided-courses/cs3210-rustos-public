@@ -1,4 +1,4 @@
-use aarch64::{ESR_EL1, current_el};
+use aarch64::{current_el};
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Fault {

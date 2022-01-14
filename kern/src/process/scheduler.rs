@@ -1,18 +1,15 @@
 use alloc::boxed::Box;
 use alloc::collections::vec_deque::VecDeque;
-use core::fmt;
 use shim::path::Path;
-
-use aarch64::*;
 
 use pi::interrupt::{Controller, Interrupt};
 use pi::timer::{current_time, tick_in};
 
 use crate::mutex::Mutex;
-use crate::param::{PAGE_MASK, PAGE_SIZE, TICK, USER_IMG_BASE};
-use crate::process::{Id, Process, Stack, State};
+use crate::param::TICK;
+use crate::process::{Id, Process, State};
 use crate::traps::TrapFrame;
-use crate::{IRQ, VMM};
+use crate::IRQ;
 
 /// Process scheduler for the entire machine.
 #[derive(Debug)]
@@ -203,25 +200,6 @@ impl Scheduler {
         match self.processes.pop_back() {
             Some(process) => Some(process.context.tpidr),
             None => None
-        }
-    }
-}
-
-pub extern "C" fn  test_user_process() -> ! {
-    loop {
-        let ms = 10000;
-        let error: u64;
-        let elapsed_ms: u64;
-
-        unsafe {
-            asm!("mov x0, $2
-              svc 1
-              mov $0, x0
-              mov $1, x7"
-                 : "=r"(elapsed_ms), "=r"(error)
-                 : "r"(ms)
-                 : "x0", "x7"
-                 : "volatile");
         }
     }
 }

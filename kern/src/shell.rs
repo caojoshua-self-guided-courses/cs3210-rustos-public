@@ -1,7 +1,6 @@
 use core::str::FromStr;
 use core::time::Duration;
 
-use shim::io;
 use shim::io::Read;
 use shim::path::{Component, PathBuf};
 
