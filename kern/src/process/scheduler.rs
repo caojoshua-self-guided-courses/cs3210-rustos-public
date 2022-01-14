@@ -1,6 +1,7 @@
 use alloc::boxed::Box;
 use alloc::collections::vec_deque::VecDeque;
 use core::fmt;
+use shim::path::Path;
 
 use aarch64::*;
 
@@ -78,6 +79,11 @@ impl GlobalScheduler {
         IRQ.register(Interrupt::Timer1, Box::new(timer1_handler));
         tick_in(TICK);
 
+        // Part of the assignment requirements is to set sp to the address of the "next kernel
+        // page" instead of _start before `eret` to have a clean kernel page when there is a fault.
+        // It's not clear what exactly is the "next page". In practice, we could have a physical
+        // page allocator and allocate one for each process. But this works for now, so I'll leave
+        // it.
         unsafe {
             asm!("mov sp, $0
                 bl context_restore
@@ -120,9 +126,10 @@ impl GlobalScheduler {
 
         // Add initial userspace processes.
         // self.add(self.new_process(start_shell as u64));
-        self.add_process(start_shell as u64);
+        // self.add_process(start_shell as u64);
         // self.add(new_process(start_shell2 as u64));
         // self.add(new_process(start_shell3 as u64));
+        self.add(Process::load(Path::new("/sleep")).unwrap());
     }
 
     // The following method may be useful for testing Phase 3:

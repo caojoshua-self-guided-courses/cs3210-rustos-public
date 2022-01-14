@@ -1,9 +1,13 @@
 use alloc::boxed::Box;
 use shim::io;
+use shim::io::Read;
 use shim::path::Path;
 
 use aarch64;
 
+use fat32::traits::{Entry, File, FileSystem};
+
+use crate::FILESYSTEM;
 use crate::param::*;
 use crate::process::{Stack, State};
 use crate::traps::TrapFrame;
@@ -60,7 +64,17 @@ impl Process {
 
         let mut p = Process::do_load(pn)?;
 
-        //FIXME: Set trapframe for the process.
+        p.context.sp = Process::get_stack_top().as_u64();
+        p.context.link_addr = USER_IMG_BASE as u64;
+        p.context.ttbr0 = VMM.get_baddr().as_u64();
+        p.context.ttbr1 = p.vmap.get_baddr().as_u64();
+
+        // Set the exception level to 0 (second/third bit).
+        p.context.pstate &= !0b1100;
+
+        // Unmask IRQ and make `F`, `A`, and `D`.
+        p.context.pstate |= 0b1101 << 6;
+        p.context.pstate &= !(0b01 << 7);
 
         Ok(p)
     }
@@ -69,30 +83,55 @@ impl Process {
     /// Allocates one page for stack with read/write permission, and N pages with read/write/execute
     /// permission to load file's contents.
     fn do_load<P: AsRef<Path>>(pn: P) -> OsResult<Process> {
-        unimplemented!();
+        let mut p = Process::new()?;
+
+        let mut file = match FILESYSTEM.open(pn)?.into_file() {
+            Some(file) => file,
+            None => return Err(OsError::ExpectedFileFoundDir),
+        };
+
+        p.vmap.alloc(VirtualAddr::from(Process::get_stack_base()), PagePerm::RW);
+
+        let size = file.size() as usize;
+        let mut addr = USER_IMG_BASE;
+        let end_addr = addr + size;
+
+        while addr < end_addr {
+            let mut bytes = p.vmap.alloc(VirtualAddr::from(addr), PagePerm::RWX);
+            file.read(bytes);
+            addr += PAGE_SIZE;
+        }
+
+        Ok(p)
     }
 
     /// Returns the highest `VirtualAddr` that is supported by this system.
     pub fn get_max_va() -> VirtualAddr {
-        unimplemented!();
+        VirtualAddr::from(USER_MAX_VM_SIZE - 1) + Process::get_image_base()
     }
 
     /// Returns the `VirtualAddr` represents the base address of the user
     /// memory space.
     pub fn get_image_base() -> VirtualAddr {
-        unimplemented!();
+        VirtualAddr::from(USER_IMG_BASE)
     }
 
     /// Returns the `VirtualAddr` represents the base address of the user
     /// process's stack.
     pub fn get_stack_base() -> VirtualAddr {
-        unimplemented!();
+        // Set the stack base to be the address of the last page. Make sure the result is aligned
+        // by the page_size.
+        let page_size = VirtualAddr::from(PAGE_SIZE);
+        Process::get_stack_top() - VirtualAddr::from(PAGE_SIZE) & VirtualAddr::from(!(PAGE_SIZE - 1))
     }
 
     /// Returns the `VirtualAddr` represents the top of the user process's
     /// stack.
     pub fn get_stack_top() -> VirtualAddr {
-        unimplemented!();
+        // Not sure about this one. If the stack is at the top of the VA space, then it would make
+        // sense the stack top would also be the max VA>.
+        // Strip the last 4 bits to make sure the result is 16 byte aligned.
+        Process::get_max_va() & VirtualAddr::from(!(Stack::ALIGN - 1))
     }
 
     /// Returns `true` if this process is ready to be scheduled.

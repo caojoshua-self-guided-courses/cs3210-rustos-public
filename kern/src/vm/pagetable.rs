@@ -255,7 +255,7 @@ impl UserPageTable {
     /// TODO. use perm properly
     pub fn alloc(&mut self, va: VirtualAddr, _perm: PagePerm) -> &mut [u8] {
         if va.as_usize() < USER_IMG_BASE {
-            panic!("va {} is less than USER_IMG_BASE {}", va.as_usize(), USER_IMG_BASE);
+            panic!("va {:x} is less than USER_IMG_BASE {:x}", va.as_usize(), USER_IMG_BASE);
         }
 
         // Subtract USER_IMG_BASE from va before page table lookup.
@@ -266,7 +266,10 @@ impl UserPageTable {
             panic!("va {} already allocated", va.as_usize());
         }
 
-        // Allocate memory for the new page.
+        // Allocate memory for the new page. Feels incorrect using the global allocator, because
+        // now user processes can now write over memory that the kernel is using. It's fine right
+        // now because this kernel is always running on one thread, but I suspect issues when
+        // working on multicore support.
         let addr = unsafe { ALLOCATOR.alloc(Page::layout()) };
         if addr == core::ptr::null_mut() {
             panic!("failed to allocate page for va {}", va.as_usize());

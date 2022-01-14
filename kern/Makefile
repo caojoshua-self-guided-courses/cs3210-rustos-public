@@ -2,8 +2,8 @@ ROOT := $(shell git rev-parse --show-toplevel)
 
 KERN := kernel
 TARGET := target/aarch64-unknown-none/release/${KERN}
-SDCARD ?= $(ROOT)/ext/fat32-imgs/mock1.fat32.img
-# SDCARD ?= $(ROOT)/user/fs.img
+# SDCARD ?= $(ROOT)/ext/fat32-imgs/mock1.fat32.img
+SDCARD ?= $(ROOT)/user/fs.img
 OBJCPY := cargo objcopy -- --strip-all -O binary
 TTY_PATH := /dev/ttyUSB0
 QEMU_ARGS ?=
@@ -31,6 +31,7 @@ check:
 qemu-resize:
 	# qemu requires that disks are of size 2^N
 	../ext/qemu/build/qemu-img resize ../ext/fat32-imgs/mock1.fat32.img 256M
+	../ext/qemu/build/qemu-img resize ../user/fs.img 256M
 
 qemu: qemu-resize build
 	./qemu.sh build/$(KERN).bin -drive file=$(SDCARD),format=raw,if=sd $(QEMU_ARGS)

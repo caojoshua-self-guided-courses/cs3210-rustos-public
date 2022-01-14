@@ -22,6 +22,7 @@ pub enum OsError {
     BadAddress = 50,
     FileExists = 60,
     InvalidArgument = 70,
+    ExpectedFileFoundDir = 80,
 
     IoError = 101,
     IoErrorEof = 102,
@@ -46,6 +47,7 @@ impl core::convert::From<u64> for OsError {
             50 => OsError::BadAddress,
             60 => OsError::FileExists,
             70 => OsError::InvalidArgument,
+            80 => OsError::ExpectedFileFoundDir,
 
             101 => OsError::IoError,
             102 => OsError::IoErrorEof,
