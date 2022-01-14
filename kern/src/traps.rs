@@ -42,8 +42,9 @@ pub struct Info {
 /// specifies the source and kind of exception that has occurred. The `esr` is
 /// the value of the exception syndrome register. Finally, `tf` is a pointer to
 /// the trap frame for the exception.
+/// Adding far register, which for address related faults, holds the address of the fault.
 #[no_mangle]
-pub extern "C" fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
+pub extern "C" fn handle_exception(info: Info, esr: u32, far: u64, tf: &mut TrapFrame) {
     if info.kind == Kind::Synchronous {
         let syndrome = Syndrome::from(esr);
         match syndrome {
@@ -52,6 +53,7 @@ pub extern "C" fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
                 // Print out info for non syscall synchronous exceptions.
                 kprintln!("handle_exception: {:#?}", info);
                 kprintln!("syndrome: {:#?}", syndrome);
+                kprintln!("fault addr: {:x}", far);
                 crate::shell::shell("exception > ");
 
                 // We increment the PC only for non-syscall synchronous calls because we want to

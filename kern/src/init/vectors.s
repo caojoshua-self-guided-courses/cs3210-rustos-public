@@ -51,8 +51,9 @@ context_save:
     // Push handle_exception args.
     mov x0, x29
     mrs x1, ESR_EL1
+    mrs x2, FAR_EL1
     // After pushing the context onto the stack, SP now points to the trap frame.
-    mov x2, SP
+    mov x3, SP
 
     // Save link register.
     stp lr, xzr, [SP, #-16]!

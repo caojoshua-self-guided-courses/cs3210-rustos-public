@@ -97,8 +97,8 @@ impl Process {
         let end_addr = addr + size;
 
         while addr < end_addr {
-            let mut bytes = p.vmap.alloc(VirtualAddr::from(addr), PagePerm::RWX);
-            file.read(bytes);
+            let bytes = p.vmap.alloc(VirtualAddr::from(addr), PagePerm::RWX);
+            let bytes_read = file.read(bytes)?;
             addr += PAGE_SIZE;
         }
 
@@ -120,9 +120,10 @@ impl Process {
     /// process's stack.
     pub fn get_stack_base() -> VirtualAddr {
         // Set the stack base to be the address of the last page. Make sure the result is aligned
-        // by the page_size.
+        // by the page_size, even though it should already be aligned by hard coded values.
         let page_size = VirtualAddr::from(PAGE_SIZE);
-        Process::get_stack_top() - VirtualAddr::from(PAGE_SIZE) & VirtualAddr::from(!(PAGE_SIZE - 1))
+        Process::get_max_va() - VirtualAddr::from(PAGE_SIZE) + VirtualAddr::from(1) &
+            VirtualAddr::from(!(PAGE_SIZE - 1))
     }
 
     /// Returns the `VirtualAddr` represents the top of the user process's

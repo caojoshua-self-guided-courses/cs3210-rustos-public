@@ -17,8 +17,9 @@ fn fib(n: u64) -> u64 {
 
 fn main() {
     println!("Started...");
+    let start = time();
 
     let rtn = fib(40);
 
-    println!("Ended: Result = {}", rtn);
+    println!("Ended: Result = {}. Elapsed {} milliseconds", rtn, (time() - start).as_millis());
 }

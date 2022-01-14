@@ -262,9 +262,6 @@ impl UserPageTable {
         let user_va = va - VirtualAddr::from(USER_IMG_BASE);
 
         let (l2index, l3index) = PageTable::locate(user_va);
-        if self.l3[l2index].entries[l3index].is_valid() {
-            panic!("va {} already allocated", va.as_usize());
-        }
 
         // Allocate memory for the new page. Feels incorrect using the global allocator, because
         // now user processes can now write over memory that the kernel is using. It's fine right

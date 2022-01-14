@@ -77,7 +77,7 @@ impl GlobalScheduler {
         // Setup timer interrupts.
         Controller::new().enable(Interrupt::Timer1);
         IRQ.register(Interrupt::Timer1, Box::new(timer1_handler));
-        tick_in(TICK);
+        tick_in(current_time() + TICK);
 
         // Part of the assignment requirements is to set sp to the address of the "next kernel
         // page" instead of _start before `eret` to have a clean kernel page when there is a fault.
@@ -98,56 +98,17 @@ impl GlobalScheduler {
         loop {}
     }
 
-    fn add_process(&self, function: u64) {
-        let mut process = Process::new().unwrap();
-
-        // process.context.link_addr = function;
-        process.context.link_addr = test_user_process as u64;
-        process.context.pstate = 0;
-        process.context.sp = process.stack.top().as_usize() as u64;
-        process.context.ttbr0 = VMM.get_baddr().as_u64();
-        process.context.ttbr1 = process.vmap.get_baddr().as_u64();
-
-        // Set the exception level to 0 (second/third bit).
-        process.context.pstate &= !0b1100;
-
-        // Unmask IRQ (7'th bit).
-        process.context.pstate &= !(0b01 << 7);
-
-        self.test_phase_3(&mut process);
-
-        self.add(process);
-    }
-
     /// Initializes the scheduler and add userspace processes to the Scheduler
     pub unsafe fn initialize(&self) {
         // Initialize the scheduler.
         *self.0.lock() = Some(Scheduler::new());
 
         // Add initial userspace processes.
-        // self.add(self.new_process(start_shell as u64));
-        // self.add_process(start_shell as u64);
-        // self.add(new_process(start_shell2 as u64));
-        // self.add(new_process(start_shell3 as u64));
-        self.add(Process::load(Path::new("/sleep")).unwrap());
+        for _ in 0..3 {
+            self.add(Process::load(Path::new("/sleep")).unwrap());
+            self.add(Process::load(Path::new("/fib")).unwrap());
+        }
     }
-
-    // The following method may be useful for testing Phase 3:
-    //
-    // * A method to load a extern function to the user process's page table.
-    //
-     pub fn test_phase_3(&self, proc: &mut Process){
-         use crate::vm::{VirtualAddr, PagePerm};
-
-         let mut page = proc.vmap.alloc(
-             VirtualAddr::from(USER_IMG_BASE as u64), PagePerm::RWX);
-
-         let text = unsafe {
-             core::slice::from_raw_parts(test_user_process as *const u8, 24)
-         };
-
-         page[0..24].copy_from_slice(text);
-     }
 }
 
 #[derive(Debug)]
@@ -265,18 +226,7 @@ pub extern "C" fn  test_user_process() -> ! {
     }
 }
 
-pub extern "C" fn start_shell() {
-    crate::shell::shell("shell1 > ");
-}
-pub extern "C" fn start_shell2() {
-    crate::shell::shell("shell2 > ");
-}
-pub extern "C" fn start_shell3() {
-    crate::shell::shell("shell3 > ");
-}
-
 fn timer1_handler(tf: &mut TrapFrame) {
     tick_in(current_time() + TICK);
-    crate::console::kprintln!("\ntimer1_handler()");
     crate::SCHEDULER.switch(State::Ready, tf);
 }

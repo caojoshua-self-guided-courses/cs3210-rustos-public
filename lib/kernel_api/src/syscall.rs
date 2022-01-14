@@ -39,7 +39,20 @@ pub fn sleep(span: Duration) -> OsResult<Duration> {
 }
 
 pub fn time() -> Duration {
-    unimplemented!("time()");
+    let mut time_secs: u64;
+    let mut time_nanos: u64;
+
+    unsafe {
+        asm!("svc $2
+             mov $0, x0
+             mov $1, x1"
+             : "=r"(time_secs), "=r"(time_nanos)
+             : "i"(NR_TIME)
+             : "x0", "x1"
+             : "volatile");
+    }
+
+    Duration::from_secs(time_secs) + Duration::from_nanos(time_nanos)
 }
 
 pub fn exit() -> ! {
@@ -47,7 +60,14 @@ pub fn exit() -> ! {
 }
 
 pub fn write(b: u8) {
-    unimplemented!("write()");
+    unsafe {
+        asm!("mov x0, $0
+              svc $1"
+             :
+             : "r"(b as u64), "i"(NR_WRITE)
+             : "x0"
+             : "volatile");
+    }
 }
 
 pub fn getpid() -> u64 {
