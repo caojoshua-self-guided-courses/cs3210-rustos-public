@@ -220,7 +220,6 @@ impl KernPageTable {
                 .set_value(EntrySh::OSh, RawL3Entry::SH);
             page_table.set_entry(VirtualAddr::from(addr), entry);
             addr += PAGE_SIZE;
-
         }
 
         KernPageTable{ 0: page_table }

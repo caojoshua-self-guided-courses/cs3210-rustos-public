@@ -101,10 +101,7 @@ impl GlobalScheduler {
         let mut tf = TrapFrame::default();
         self.critical(|scheduler| scheduler.switch_to(&mut tf));
 
-        // Setup timer interrupts.
-        Controller::new().enable(Interrupt::Timer1);
-        GLOBAL_IRQ.register(Interrupt::Timer1, Box::new(timer1_handler));
-        tick_in(current_time() + TICK);
+        self.initialize_global_timer_interrupt();
 
         // Part of the assignment requirements is to set sp to the address of the "next kernel
         // page" instead of _start before `eret` to have a clean kernel page when there is a fault.
@@ -134,7 +131,10 @@ impl GlobalScheduler {
     /// Registers a timer handler with `Usb::start_kernel_timer` which will
     /// invoke `poll_ethernet` after 1 second.
     pub fn initialize_global_timer_interrupt(&self) {
-        unimplemented!("initialize_global_timer_interrupt()")
+        // Setup timer interrupts.
+        Controller::new().enable(Interrupt::Timer1);
+        GLOBAL_IRQ.register(Interrupt::Timer1, Box::new(timer1_handler));
+        tick_in(current_time() + TICK);
     }
 
     /// Initializes the per-core local timer interrupt with `pi::local_interrupt`.

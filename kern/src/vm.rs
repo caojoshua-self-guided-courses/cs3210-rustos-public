@@ -41,6 +41,7 @@ impl VMManager {
             panic!("kernel page table already initialized");
         }
         *page_table = Some(KernPageTable::new());
+        self.kern_pt_addr.store(self.get_baddr().as_usize(), Ordering::Relaxed);
     }
 
     /// Set up the virtual memory manager for the current core.

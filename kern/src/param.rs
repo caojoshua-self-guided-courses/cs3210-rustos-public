@@ -26,8 +26,7 @@ pub const KERN_STACK_BASE: usize = 0x80_000;
 pub const KERN_STACK_ALIGN: usize = PAGE_ALIGN;
 pub const KERN_STACK_SIZE: usize = PAGE_SIZE;
 
-// FIXME: When you're ready, change this to something more reasonable.
-pub const TICK: Duration = Duration::from_secs(2);
+pub const TICK: Duration = Duration::from_millis(10);
 
 // Match this value with `HZ` in `timer.h`
 pub const USPI_TIMER_HZ: usize = 10;
