@@ -1,8 +1,12 @@
 use alloc::boxed::Box;
+use alloc::vec::Vec;
 use shim::io::Read;
 use shim::path::Path;
 
 use fat32::traits::{Entry, File, FileSystem};
+
+use aarch64;
+use smoltcp::socket::SocketHandle;
 
 use crate::FILESYSTEM;
 use crate::param::*;
@@ -25,6 +29,9 @@ pub struct Process {
     pub vmap: Box<UserPageTable>,
     /// The scheduling state of the process.
     pub state: State,
+    // Lab 5 2.C
+    // Socket handles held by the current process
+    // pub sockets: Vec<SocketHandle>,
 }
 
 impl Process {
@@ -47,8 +54,8 @@ impl Process {
         })
     }
 
-    /// Load a program stored in the given path by calling `do_load()` method.
-    /// Set trapframe `context` corresponding to the its page table.
+    /// Loads a program stored in the given path by calling `do_load()` method.
+    /// Sets trapframe `context` corresponding to its page table.
     /// `sp` - the address of stack top
     /// `elr` - the address of image base.
     /// `ttbr0` - the base address of kernel page table
