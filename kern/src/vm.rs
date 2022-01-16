@@ -1,5 +1,3 @@
-use crate::mutex::Mutex;
-
 use aarch64::*;
 
 mod address;
@@ -38,12 +36,11 @@ impl VMManager {
     /// The caller should assure that the method is invoked only once during the kernel
     /// initialization.
     pub fn initialize(&self) {
-        let mut page_table = self.0.lock();
+        let mut page_table = self.kern_pt.lock();
         if page_table.is_some() {
             panic!("kernel page table already initialized");
         }
         *page_table = Some(KernPageTable::new());
-        self.setup();
     }
 
     /// Set up the virtual memory manager for the current core.
@@ -116,7 +113,7 @@ impl VMManager {
 
     /// Returns the base address of the kernel page table as `PhysicalAddr`.
     pub fn get_baddr(&self) -> PhysicalAddr {
-        match &*self.0.lock() {
+        match &*self.kern_pt.lock() {
             Some(page_table) => {
                 page_table.get_baddr()
             },

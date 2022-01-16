@@ -11,7 +11,9 @@ use fat32::traits::{Dir, Entry, File};
 
 use alloc::vec::Vec;
 
+// use kernel_api::syscall::sleep;
 use kernel_api::syscall::sleep;
+use kernel_api::OsError;
 
 use crate::console::{kprint, kprintln, CONSOLE};
 use crate::FILESYSTEM;

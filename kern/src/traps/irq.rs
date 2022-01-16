@@ -113,20 +113,13 @@ where
 {
     /// Register an irq handler for an interrupt.
     fn register(&self, int: I, handler: IrqHandler) {
-        match &mut *self.0.lock() {
-            Some(handlers) => handlers[Interrupt::to_index(int)] = Some(handler),
-            None => panic!("Calling Irq::register() before Irq::initialize() has been called"),
-        }
+        *self[int].lock() = Some(handler);
     }
 
     /// Executes an irq handler for the given interrupt.
     fn invoke(&self, int: I, tf: &mut TrapFrame) {
-        match &mut *self.0.lock() {
-            Some(handlers) => match &mut handlers[Interrupt::to_index(int)] {
-                Some(handler) => handler(tf),
-                None => (),
-            },
-            None => panic!("Calling Irq::invoke() before Irq::initialize() has been called"),
+        if let Some(handler) = &mut *self[int].lock() {
+            handler(tf);
         }
     }
 }

@@ -30,6 +30,7 @@ pub mod traps;
 pub mod vm;
 
 use allocator::Allocator;
+use console::kprintln;
 use fs::FileSystem;
 use net::uspi::Usb;
 use net::GlobalEthernetDriver;
@@ -43,7 +44,7 @@ pub static FILESYSTEM: FileSystem = FileSystem::uninitialized();
 pub static SCHEDULER: GlobalScheduler = GlobalScheduler::uninitialized();
 pub static VMM: VMManager = VMManager::uninitialized();
 pub static USB: Usb = Usb::uninitialized();
-pub static GLOABAL_IRQ: GlobalIrq = GlobalIrq::new();
+pub static GLOBAL_IRQ: GlobalIrq = GlobalIrq::new();
 pub static FIQ: Fiq = Fiq::new();
 pub static ETHERNET: GlobalEthernetDriver = GlobalEthernetDriver::uninitialized();
 
@@ -68,7 +69,13 @@ unsafe fn kmain() -> ! {
 
     ALLOCATOR.initialize();
     FILESYSTEM.initialize();
+    VMM.initialize();
+    VMM.setup();
+    SCHEDULER.initialize();
+    SCHEDULER.start();
 
     kprintln!("Welcome to cs3210!");
     shell::shell("> ");
+
+    loop {}
 }

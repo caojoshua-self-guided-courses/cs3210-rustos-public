@@ -6,9 +6,6 @@ use shim::path::Path;
 use pi::interrupt::{Controller, Interrupt};
 use pi::timer::{current_time, tick_in};
 
-use crate::mutex::Mutex;
-use crate::param::TICK;
-
 use core::ffi::c_void;
 use core::fmt;
 use core::mem;
@@ -18,6 +15,7 @@ use aarch64::*;
 use pi::local_interrupt::LocalInterrupt;
 use smoltcp::time::Instant;
 
+use crate::GLOBAL_IRQ;
 use crate::mutex::Mutex;
 use crate::net::uspi::TKernelTimerHandle;
 use crate::param::*;
@@ -25,7 +23,6 @@ use crate::percore::{get_preemptive_counter, is_mmu_ready, local_irq};
 use crate::process::{Id, Process, State};
 use crate::traps::irq::IrqHandlerRegistry;
 use crate::traps::TrapFrame;
-use crate::IRQ;
 use crate::{ETHERNET, USB};
 
 /// Process scheduler for the entire machine.
@@ -76,11 +73,11 @@ impl GlobalScheduler {
                     "[core-{}] switch_to {:?}, pc: {:x}, lr: {:x}, x29: {:x}, x28: {:x}, x27: {:x}",
                     affinity(),
                     id,
-                    tf.elr,
-                    tf.xs[30],
-                    tf.xs[29],
-                    tf.xs[28],
-                    tf.xs[27]
+                    tf.link_addr,
+                    tf.gen_reg[30],
+                    tf.gen_reg[29],
+                    tf.gen_reg[28],
+                    tf.gen_reg[27]
                 );
                 return id;
             }
@@ -106,7 +103,7 @@ impl GlobalScheduler {
 
         // Setup timer interrupts.
         Controller::new().enable(Interrupt::Timer1);
-        IRQ.register(Interrupt::Timer1, Box::new(timer1_handler));
+        GLOBAL_IRQ.register(Interrupt::Timer1, Box::new(timer1_handler));
         tick_in(current_time() + TICK);
 
         // Part of the assignment requirements is to set sp to the address of the "next kernel
@@ -193,10 +190,10 @@ pub struct Scheduler {
 impl Scheduler {
     /// Returns a new `Scheduler` with an empty queue.
     fn new() -> Box<Scheduler> {
-        Scheduler {
+        Box::new(Scheduler {
             processes: VecDeque::new(),
             last_id: Some(0),
-        }
+        })
     }
 
     /// Adds a process to the scheduler's queue and returns that process's ID if

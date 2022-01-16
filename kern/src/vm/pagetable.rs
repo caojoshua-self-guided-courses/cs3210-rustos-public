@@ -103,7 +103,7 @@ impl PageTable {
     fn new(perm: u64) -> Box<PageTable> {
         let mut page_table = Box::new(PageTable{
             l2: L2PageTable::new(),
-            l3: [L3PageTable::new(), L3PageTable::new()],
+            l3: [L3PageTable::new(), L3PageTable::new(), L3PageTable::new()],
         });
 
         // Setup L2 page table entries and point them to L3 page tables.
@@ -135,8 +135,8 @@ impl PageTable {
         }
 
         let l2index = va >> 29 & 0b1111111111111;
-        if l2index >= 2 {
-            panic!("L2index was {}, but there are only 2 L3 page tables", l2index);
+        if l2index >= 3 {
+            panic!("L2index was {}, but there are only 3 L3 page tables", l2index);
         }
 
         let l3index = va >> 16 & 0b1111111111111;

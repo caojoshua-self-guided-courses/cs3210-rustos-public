@@ -3,14 +3,11 @@ use core::time::Duration;
 use pi::timer::current_time;
 
 use crate::console::{kprint, kprintln};
-use crate::process::{Process, State};
-use smoltcp::wire::{IpAddress, IpEndpoint};
-
-use crate::console::{kprint, CONSOLE};
 use crate::param::USER_IMG_BASE;
-use crate::process::State;
+use crate::process::{Process, State};
 use crate::traps::TrapFrame;
 use crate::{ETHERNET, SCHEDULER};
+use smoltcp::wire::{IpAddress, IpEndpoint};
 
 use kernel_api::*;
 
@@ -254,11 +251,11 @@ pub fn sys_write_str(va: usize, len: usize, tf: &mut TrapFrame) {
         Ok(msg) => {
             kprint!("{}", msg);
 
-            tf.xs[0] = msg.len() as u64;
-            tf.xs[7] = OsError::Ok as u64;
+            tf.gen_reg[0] = msg.len() as u64;
+            tf.gen_reg[7] = OsError::Ok as u64;
         }
         Err(e) => {
-            tf.xs[7] = e as u64;
+            tf.gen_reg[7] = e as u64;
         }
     }
 }
