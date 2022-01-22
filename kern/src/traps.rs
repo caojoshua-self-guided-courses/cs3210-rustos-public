@@ -64,12 +64,22 @@ pub extern "C" fn handle_exception(info: Info, esr: u32, far: u64, tf: &mut Trap
                 tf.increment_link_addr(4);
             },
         }
-
     } else if info.kind == Kind::Irq {
-        let controller = Controller::new();
-        for interrupt in Interrupt::iter() {
+        if aarch64::affinity() == 0 {
+            // global interrupts
+            let controller = Controller::new();
+            for interrupt in Interrupt::iter() {
+                if controller.is_pending(interrupt) {
+                    GLOBAL_IRQ.invoke(interrupt, tf);
+                }
+            }
+        }
+
+        // local interrupts
+        let controller = LocalController::new(aarch64::affinity());
+        for interrupt in LocalInterrupt::iter() {
             if controller.is_pending(interrupt) {
-                GLOBAL_IRQ.invoke(interrupt, tf);
+                percore::local_irq().invoke(interrupt, tf);
             }
         }
     } else {

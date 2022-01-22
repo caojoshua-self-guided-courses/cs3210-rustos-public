@@ -72,6 +72,6 @@ unsafe fn kmain() -> ! {
     VMM.initialize();
     SCHEDULER.initialize();
     init::initialize_app_cores();
-    VMM.setup();
+    VMM.wait();
     SCHEDULER.start();
 }

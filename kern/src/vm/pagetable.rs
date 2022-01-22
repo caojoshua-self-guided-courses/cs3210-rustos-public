@@ -107,7 +107,7 @@ impl PageTable {
         });
 
         // Setup L2 page table entries and point them to L3 page tables.
-        for i in 0..2 {
+        for i in 0..3 {
             page_table.l2.entries[i].set_value(EntryValid::Valid, RawL3Entry::VALID)
                 .set_value(PageType::Page, RawL2Entry::TYPE)
                 .set_value(EntryAttr::Mem, RawL2Entry::ATTR)
