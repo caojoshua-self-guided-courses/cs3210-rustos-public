@@ -3,6 +3,8 @@ use core::fmt;
 use core::ops::{Deref, DerefMut, Drop};
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
+use crate::percore::{getcpu, is_mmu_ready, putcpu};
+
 #[repr(align(32))]
 pub struct Mutex<T> {
     data: UnsafeCell<T>,
@@ -34,10 +36,23 @@ impl<T> Mutex<T> {
     // Once MMU/cache is enabled, do the right thing here. For now, we don't
     // need any real synchronization.
     pub fn try_lock(&self) -> Option<MutexGuard<T>> {
-        let this = 0;
-        if !self.lock.load(Ordering::Relaxed) || self.owner.load(Ordering::Relaxed) == this {
+        let cpu = aarch64::affinity();
+
+        if is_mmu_ready() {
+            if !self.lock.compare_and_swap(false, true, Ordering::AcqRel) {
+                self.owner.swap(cpu, Ordering::Release);
+                getcpu();
+                Some(MutexGuard { lock: &self })
+            } else {
+                None
+            }
+
+        } else if cpu == 0 &&
+            (!self.lock.load(Ordering::Relaxed) || self.owner.load(Ordering::Relaxed) == cpu) {
+            // If mmu is not ready, only allow cpu 0 to acquire a mutex.
             self.lock.store(true, Ordering::Relaxed);
-            self.owner.store(this, Ordering::Relaxed);
+            self.owner.store(cpu, Ordering::Relaxed);
+            getcpu();
             Some(MutexGuard { lock: &self })
         } else {
             None
@@ -58,7 +73,13 @@ impl<T> Mutex<T> {
     }
 
     fn unlock(&self) {
-        self.lock.store(false, Ordering::Relaxed);
+        let ordering = if is_mmu_ready() {
+            Ordering::Release
+        } else {
+            Ordering::Relaxed
+        };
+        self.lock.store(false, ordering);
+        putcpu(aarch64::affinity());
     }
 }
 

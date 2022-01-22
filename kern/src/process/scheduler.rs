@@ -12,7 +12,7 @@ use core::mem;
 use core::time::Duration;
 
 use aarch64::*;
-use pi::local_interrupt::LocalInterrupt;
+use pi::local_interrupt::{local_tick_in, LocalController, LocalInterrupt};
 use smoltcp::time::Instant;
 
 use crate::GLOBAL_IRQ;
@@ -101,22 +101,30 @@ impl GlobalScheduler {
         let mut tf = TrapFrame::default();
         self.critical(|scheduler| scheduler.switch_to(&mut tf));
 
-        self.initialize_global_timer_interrupt();
+        if affinity() == 0 {
+            self.initialize_global_timer_interrupt();
+        }
+        self.initialize_local_timer_interrupt();
 
-        // Part of the assignment requirements is to set sp to the address of the "next kernel
-        // page" instead of _start before `eret` to have a clean kernel page when there is a fault.
-        // It's not clear what exactly is the "next page". In practice, we could have a physical
-        // page allocator and allocate one for each process. But this works for now, so I'll leave
-        // it.
+        let stack_base = KERN_STACK_BASE - (KERN_STACK_SIZE * (affinity() + 0));
+        info!("stack_base core {}: {:x}", affinity(),stack_base);
+        let tf_addr = (stack_base - core::mem::size_of::<TrapFrame>()) as *mut TrapFrame;
+        // unsafe { *tf_addr = tf };
+
+        info!("stack_base core {}: {:x}", affinity(),stack_base);
+        info!("current SP: {:x}", SP.get());
+        info!("tf_addr: {:x}", tf_addr as usize);
+
         unsafe {
-            asm!("mov sp, $0
-                bl context_restore
-                ldr x0, =_start
-                mov sp, x0
-                mov x0, #0
-                eret"
-                :: "r"(&tf)
-                :: "volatile");
+            // SP.set(tf_addr as usize);
+            SP.set(&tf as *const TrapFrame as usize);
+            asm!("bl context_restore" :::: "volatile");
+
+            // This creates weird exceptions for some reason...but with our current implementation,
+            // at least we are only wasting memory equal to the size of a frame.
+            // SP.set(stack_base);
+
+            eret();
         }
 
         loop {}
@@ -131,10 +139,6 @@ impl GlobalScheduler {
     /// Registers a timer handler with `Usb::start_kernel_timer` which will
     /// invoke `poll_ethernet` after 1 second.
     pub fn initialize_global_timer_interrupt(&self) {
-        // Setup timer interrupts.
-        Controller::new().enable(Interrupt::Timer1);
-        GLOBAL_IRQ.register(Interrupt::Timer1, Box::new(timer1_handler));
-        tick_in(current_time() + TICK);
     }
 
     /// Initializes the per-core local timer interrupt with `pi::local_interrupt`.
@@ -142,7 +146,11 @@ impl GlobalScheduler {
     /// every `TICK` duration, which is defined in `param.rs`.
     pub fn initialize_local_timer_interrupt(&self) {
         // Lab 5 2.C
-        unimplemented!("initialize_local_timer_interrupt()")
+        let mut controller = LocalController::new(affinity());
+        controller.enable_local_timer();
+        local_irq().register(LocalInterrupt::CNTPNSIRQ, Box::new(timer1_handler));
+        // local_irq().register(LocalInterrupt::LocalTimer, Box::new(timer1_handler));
+        controller.tick_in(TICK);
     }
 
     /// Initializes the scheduler and add userspace processes to the Scheduler.
@@ -236,6 +244,7 @@ impl Scheduler {
             }
         }
 
+        // aarch64::sev();
         false
     }
 
@@ -329,6 +338,6 @@ pub extern "C" fn  test_user_process() -> ! {
     }
 }
 fn timer1_handler(tf: &mut TrapFrame) {
-    tick_in(current_time() + TICK);
+    local_tick_in(affinity(), TICK);
     crate::SCHEDULER.switch(State::Ready, tf);
 }

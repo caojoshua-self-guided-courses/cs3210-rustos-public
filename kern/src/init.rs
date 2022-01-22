@@ -8,7 +8,7 @@ mod panic;
 
 use crate::kmain;
 use crate::param::*;
-use crate::VMM;
+use crate::{SCHEDULER, VMM};
 
 global_asm!(include_str!("init/vectors.s"));
 
@@ -131,15 +131,16 @@ unsafe fn kmain2() -> ! {
     let core_idx = MPIDR_EL1.get_value(MPIDR_EL1::Aff0);
     let addr = (SPINNING_BASE as u64 + 8 * core_idx) as *mut usize;
     *addr = 0;
+    VMM.wait();
     info!("Initialized core {}", core_idx);
-    loop {}
+    SCHEDULER.start()
 }
 
 /// Wakes up each app core by writing the address of `init::start2`
 /// to their spinning base and send event with `sev()`.
 pub unsafe fn initialize_app_cores() {
     // Lab 5 1.A
-    for i in 1..4 {
+    for i in 1..pi::common::NCORES {
         let addr = (SPINNING_BASE as usize + 8 * i) as *mut usize;
         *addr = start2 as usize;
         sev();
