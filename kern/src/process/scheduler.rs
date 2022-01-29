@@ -106,27 +106,38 @@ impl GlobalScheduler {
         }
         self.initialize_local_timer_interrupt();
 
-        let stack_base = KERN_STACK_BASE - (KERN_STACK_SIZE * (affinity() + 0));
-        info!("stack_base core {}: {:x}", affinity(),stack_base);
+        let stack_base = KERN_STACK_BASE - (KERN_STACK_SIZE * affinity());
         let tf_addr = (stack_base - core::mem::size_of::<TrapFrame>()) as *mut TrapFrame;
-        // unsafe { *tf_addr = tf };
-
-        info!("stack_base core {}: {:x}", affinity(),stack_base);
-        info!("current SP: {:x}", SP.get());
-        info!("tf_addr: {:x}", tf_addr as usize);
 
         unsafe {
-            // SP.set(tf_addr as usize);
-            SP.set(&tf as *const TrapFrame as usize);
-            asm!("bl context_restore" :::: "volatile");
+            // We copy the trap frame to the top of the core's stack, then set SP to point to the
+            // new trap frame. `context_restore` will pop the trap_frame from the stack, and SP
+            // will be point to the top of the core's stack before `eret`.
+            //
+            // The naive solution, which is to set SP to &tf and call context_restore, will waste
+            // memory equal to how much memory has been pushed to SP in this kernel thread before
+            // `eret`. This implementation does not waste any memory.
 
-            // This creates weird exceptions for some reason...but with our current implementation,
-            // at least we are only wasting memory equal to the size of a frame.
-            // SP.set(stack_base);
+            // We implement copy_trap_frame in asm, rather than rust with
+            // `unsafe { *tf_addr = tf }` because after the struct copy, stack variables may get
+            // overwritten, including the tf_addr pointer. In asm, we can save the tf_addr by
+            // having copy_trap_frame returning it in x0.
+            asm!("
+                 // Copy the trap frame.
+                 mov x0, $0
+                 mov x1, $1
+                 bl copy_trap_frame
 
-            eret();
+                 mov SP, x0
+                 bl context_restore
+
+                 eret"
+                 :: "r"(&tf), "r"(tf_addr)
+                 :: "volatile");
+
         }
 
+        // Should never reach here.
         loop {}
     }
 
@@ -149,7 +160,6 @@ impl GlobalScheduler {
         let mut controller = LocalController::new(affinity());
         controller.enable_local_timer();
         local_irq().register(LocalInterrupt::CNTPNSIRQ, Box::new(timer1_handler));
-        // local_irq().register(LocalInterrupt::LocalTimer, Box::new(timer1_handler));
         controller.tick_in(TICK);
     }
 
@@ -340,4 +350,14 @@ pub extern "C" fn  test_user_process() -> ! {
 fn timer1_handler(tf: &mut TrapFrame) {
     local_tick_in(affinity(), TICK);
     crate::SCHEDULER.switch(State::Ready, tf);
+}
+
+// Function that GlobalScheduler::start() calls to copy the trap frame, so we don't have to
+// implement memcpy() in asm.
+// Returns the dst address, since the original pointer is stored onthe stack, but it can get
+// overwritten after copying the trap frame.
+#[no_mangle]
+pub unsafe extern "C" fn copy_trap_frame(src: *const TrapFrame, dst: *mut TrapFrame) -> *mut TrapFrame {
+    *dst = *src;
+    dst
 }
