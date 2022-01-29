@@ -107,24 +107,71 @@ impl GlobalScheduler {
         self.initialize_local_timer_interrupt();
 
         let stack_base = KERN_STACK_BASE - (KERN_STACK_SIZE * (affinity() + 0));
-        info!("stack_base core {}: {:x}", affinity(),stack_base);
+        info!("stack_base affinity {}: {:x}", affinity(), stack_base);
         let tf_addr = (stack_base - core::mem::size_of::<TrapFrame>()) as *mut TrapFrame;
+
+        // if SP >= tf_addr + core::mem::size_of( {
+        // }
+        // tf.tpidr = 69;
+        // for i in 0..20 {
+        //     tf.simd_reg[i] = 69;
+        // }
+        // tf.gen_reg[0] = 69;
+        // this overwrites our current frame and messes up our pointers.
         // unsafe { *tf_addr = tf };
 
-        info!("stack_base core {}: {:x}", affinity(),stack_base);
-        info!("current SP: {:x}", SP.get());
-        info!("tf_addr: {:x}", tf_addr as usize);
+        // if affinity() == 0 {
+        //     info!("stack_base core {}: {:x}", affinity(), stack_base);
+        //     info!("current SP core {}: {:x}", affinity(), SP.get());
+        //     info!("tf_addr core {}: {:x}", affinity(), tf_addr as usize);
+        //     info!("orig.. tf core {}: {:?}", affinity(), tf);
+        //     unsafe {
+        //         info!("copied tf core {}: {:?}", affinity(), *(tf_addr as *const TrapFrame));
+        //     }
+        // }
+        //
+        unsafe {
+            let mut foo: u64;
+
+            asm!("ldr x0, =_start
+                 mov $0, x0"
+                 : "=r"(foo)
+                 :: "x0"
+                 : "volatile");
+            info!("foo: {:x}", foo);
+        }
+
+        unsafe {
+            let mut foo: u64;
+            asm!("mov x0, $1
+                 mov $0, x0"
+                 : "=r"(foo)
+                 : "r"(stack_base)
+                 : "x0"
+                 : "volatile");
+
+            info!("read-write test: {:x}", foo);
+        }
 
         unsafe {
             // SP.set(tf_addr as usize);
-            SP.set(&tf as *const TrapFrame as usize);
-            asm!("bl context_restore" :::: "volatile");
+            // SP.set(&tf as *const TrapFrame as usize);
+            // asm!("bl context_restore" :::: "volatile");
+            asm!("mov sp, $0
+                 bl context_restore
+                 mov sp, $1
+                 // TODO: try compute stack_base right here!
+                 // Make sure to save the registers being used.
+                 // extern function might mess with register values.
+                 eret"
+                 :: "r"(&tf), "r"(stack_base)
+                 :: "volatile");
 
             // This creates weird exceptions for some reason...but with our current implementation,
             // at least we are only wasting memory equal to the size of a frame.
             // SP.set(stack_base);
 
-            eret();
+            // eret();
         }
 
         loop {}
@@ -149,7 +196,6 @@ impl GlobalScheduler {
         let mut controller = LocalController::new(affinity());
         controller.enable_local_timer();
         local_irq().register(LocalInterrupt::CNTPNSIRQ, Box::new(timer1_handler));
-        // local_irq().register(LocalInterrupt::LocalTimer, Box::new(timer1_handler));
         controller.tick_in(TICK);
     }
 

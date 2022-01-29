@@ -133,7 +133,8 @@ unsafe fn kmain2() -> ! {
     *addr = 0;
     VMM.wait();
     info!("Initialized core {}", core_idx);
-    SCHEDULER.start()
+    // SCHEDULER.start()
+    loop {}
 }
 
 /// Wakes up each app core by writing the address of `init::start2`
