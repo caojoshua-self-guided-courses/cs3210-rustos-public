@@ -70,7 +70,7 @@ pub fn sys_exit(_tf: &mut TrapFrame) {
 ///
 /// It only returns the usual status value.
 pub fn sys_write(b: u8, tf: &mut TrapFrame) {
-    kprint!("{}", b as char);
+    info!("{}", b as char);
     tf.gen_reg[SYSCALL_ERR_REG_IDX] = 1;
 }
 
@@ -80,8 +80,9 @@ pub fn sys_write(b: u8, tf: &mut TrapFrame) {
 ///
 /// In addition to the usual status value, this system call returns a
 /// parameter: the current process's ID.
-pub fn sys_getpid(_tf: &mut TrapFrame) {
-    unimplemented!("sys_getpid()");
+pub fn sys_getpid(tf: &mut TrapFrame) {
+    tf.gen_reg[0] = tf.tpidr;
+    tf.gen_reg[SYSCALL_ERR_REG_IDX] = 1;
 }
 
 /// Creates a socket and saves the socket handle in the current process's
@@ -261,13 +262,15 @@ pub fn sys_write_str(va: usize, len: usize, tf: &mut TrapFrame) {
 }
 
 pub fn handle_syscall(num: u16, tf: &mut TrapFrame) {
+    // info!("handle syscall {}", num);
     match num as usize {
         NR_SLEEP => sys_sleep(tf.gen_reg[0] as u32, tf),
         NR_TIME => sys_time(tf),
-        NR_WRITE => sys_write(tf.gen_reg[0] as u8, tf),
         // unimplemented
         NR_EXIT => sys_exit(tf),
+        NR_WRITE => sys_write(tf.gen_reg[0] as u8, tf),
         NR_GETPID => sys_getpid(tf),
+        NR_WRITE_STR => sys_write_str(tf.gen_reg[0] as usize, tf.gen_reg[1] as usize, tf),
         _ => kprintln!("Unknown syscall ID {}", num),
     }
 }

@@ -71,11 +71,30 @@ pub fn write(b: u8) {
 }
 
 pub fn write_str(msg: &str) {
-    unimplemented!("write_str()")
+    unsafe {
+
+        asm!("mov x0, $0
+             mov x1, $1
+             svc $2"
+             :: "r"(msg as *const str as *const usize as usize), "r"(msg.len()), "i"(NR_WRITE_STR)
+             : "x0", "x1"
+             : "volatile");
+    }
 }
 
 pub fn getpid() -> u64 {
-    unimplemented!("getpid()")
+    let mut pid: u64;
+
+    unsafe {
+        asm!("svc $1
+             mov $0, x0"
+             : "=r"(pid)
+             : "i"(NR_GETPID)
+             : "x0"
+             : "volatile");
+    }
+
+    pid
 }
 
 pub fn sock_create() -> SocketDescriptor {
