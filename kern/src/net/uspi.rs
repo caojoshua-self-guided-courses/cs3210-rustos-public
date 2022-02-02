@@ -2,9 +2,10 @@
 
 use alloc::boxed::Box;
 use alloc::string::String;
+use alloc::vec::Vec;
 use core::alloc::{GlobalAlloc, Layout};
 use core::ffi::c_void;
-use core::slice;
+use core::{slice, str};
 use core::time::Duration;
 
 use pi::interrupt::{Controller, Interrupt};
@@ -144,6 +145,18 @@ mod inner {
 
 pub use inner::USPi;
 
+fn str_from_cstr(cstr: *const u8) -> core::result::Result<String, alloc::string::FromUtf8Error> {
+    let mut ptr = cstr;
+    let mut bytes = Vec::new();
+    unsafe {
+        while *ptr != b'\0' {
+            bytes.push(*ptr);
+            ptr = (ptr as usize + 1) as *const u8;
+        }
+    }
+    String::from_utf8(bytes)
+}
+
 unsafe fn layout(size: usize) -> Layout {
     Layout::from_size_align_unchecked(size + core::mem::size_of::<usize>(), 16)
 }
@@ -151,37 +164,41 @@ unsafe fn layout(size: usize) -> Layout {
 #[no_mangle]
 fn malloc(size: u32) -> *mut c_void {
     // Lab 5 2.B
-    unimplemented!("malloc")
+    unsafe {
+        ALLOCATOR.alloc(Layout::from_size_align_unchecked(size as usize, 16)) as *mut c_void
+    }
 }
 
 #[no_mangle]
 fn free(ptr: *mut c_void) {
     // Lab 5 2.B
-    unimplemented!("free")
+    unsafe {
+        ALLOCATOR.dealloc(ptr as *mut u8, Layout::from_size_align_unchecked(0, 16));
+    }
 }
 
 #[no_mangle]
 pub fn TimerSimpleMsDelay(nMilliSeconds: u32) {
     // Lab 5 2.B
-    unimplemented!("TimerSimpleMsDelay")
+    MsDelay(nMilliSeconds);
 }
 
 #[no_mangle]
 pub fn TimerSimpleusDelay(nMicroSeconds: u32) {
     // Lab 5 2.B
-    unimplemented!("TimerSimpleusDelay")
+    usDelay(nMicroSeconds);
 }
 
 #[no_mangle]
 pub fn MsDelay(nMilliSeconds: u32) {
     // Lab 5 2.B
-    unimplemented!("MsDelay")
+    spin_sleep(Duration::from_millis(nMilliSeconds as u64));
 }
 
 #[no_mangle]
 pub fn usDelay(nMicroSeconds: u32) {
     // Lab 5 2.B
-    unimplemented!("usDelay")
+    spin_sleep(Duration::from_micros(nMicroSeconds as u64));
 }
 
 /// Registers `pHandler` to the kernel's IRQ handler registry.
@@ -200,7 +217,10 @@ pub unsafe fn ConnectInterrupt(nIRQ: u32, pHandler: TInterruptHandler, pParam: *
 #[no_mangle]
 pub unsafe fn DoLogWrite(_pSource: *const u8, _Severity: u32, pMessage: *const u8) {
     // Lab 5 2.B
-    unimplemented!("DoLogWrite")
+    match str_from_cstr(pMessage) {
+        Ok(str) => uspi_trace!("{}", str),
+        Err(err) => uspi_trace!("Error parsing uspi log message: {}", err),
+    }
 }
 
 #[no_mangle]
@@ -211,7 +231,15 @@ pub fn DebugHexdump(_pBuffer: *const c_void, _nBufLen: u32, _pSource: *const u8)
 #[no_mangle]
 pub unsafe fn uspi_assertion_failed(pExpr: *const u8, pFile: *const u8, nLine: u32) {
     // Lab 5 2.B
-    unimplemented!("uspi_assertion_failed")
+    match (str_from_cstr(pExpr), str_from_cstr(pFile)) {
+        (Ok(expr), Ok(file)) => uspi_trace!("uspi_assertion failed:
+                                      pExpr: {}
+                                      pFile: {}
+                                      nLine: {}", expr, file, nLine),
+        (Ok(_), Err(_)) => uspi_trace!("uspi_assertion_failed: error parsing pFile"),
+        (Err(_), Ok(_)) => uspi_trace!("upsi_assertion_failed: error parsing eExpr"),
+        (Err(_), Err(_)) => uspi_trace!("upsi_assertion_faile: error parsing pFile and eExpr"),
+    }
 }
 
 pub struct Usb(pub Mutex<Option<USPi>>);
