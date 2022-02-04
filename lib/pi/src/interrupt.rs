@@ -108,7 +108,12 @@ impl Controller {
 
     /// Enables the interrupt as FIQ interrupt
     pub fn enable_fiq(&mut self, int: Interrupt) {
-        // Lab 5 2.B
-        unimplemented!("enable_fiq")
+        // Enable FIQ generation.
+        self.registers.fiq_ctrl.and_mask(0b1 >> 7);
+
+        // Enable the FIQ interrupt. Only one FIQ interrupt can active at a time, and is set to the
+        // first seven bits of the FIQ control register.
+        let int = int as u32 & 0b1111111;
+        self.registers.fiq_ctrl.and_mask(int);
     }
 }

@@ -12,7 +12,8 @@ use crate::console::kprintln;
 
 use self::syndrome::Syndrome;
 use self::syscall::handle_syscall;
-use crate::GLOBAL_IRQ;
+use core::ops::Index;
+use crate::{FIQ, GLOBAL_IRQ};
 use crate::percore;
 use crate::traps::irq::IrqHandlerRegistry;
 
@@ -51,7 +52,10 @@ pub extern "C" fn handle_exception(info: Info, esr: u32, far: u64, tf: &mut Trap
     if info.kind == Kind::Synchronous {
         let syndrome = Syndrome::from(esr);
         match syndrome {
-            Syndrome::Svc(num) => handle_syscall(num, tf),
+            Syndrome::Svc(num) => {
+                aarch64::enable_fiq_interrupt();
+                handle_syscall(num, tf);
+            },
             _ => {
                 // Print out info for non syscall synchronous exceptions.
                 kprintln!("handle_exception: {:#?}", info);
@@ -65,6 +69,8 @@ pub extern "C" fn handle_exception(info: Info, esr: u32, far: u64, tf: &mut Trap
             },
         }
     } else if info.kind == Kind::Irq {
+        aarch64::enable_fiq_interrupt();
+
         if aarch64::affinity() == 0 {
             // global interrupts
             let controller = Controller::new();
@@ -82,6 +88,8 @@ pub extern "C" fn handle_exception(info: Info, esr: u32, far: u64, tf: &mut Trap
                 percore::local_irq().invoke(interrupt, tf);
             }
         }
+    } else if info.kind == Kind::Fiq {
+        FIQ.invoke((), tf);
     } else {
         kprintln!("handle_exception: {:#?}", info);
         loop {

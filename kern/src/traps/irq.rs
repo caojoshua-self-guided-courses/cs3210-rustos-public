@@ -95,7 +95,7 @@ impl Index<()> for Fiq {
 
     fn index(&self, _: ()) -> &IrqHandlerMutex {
         // Lab 5 2.B
-        unimplemented!("FIQ Index")
+        &self.0
     }
 }
 

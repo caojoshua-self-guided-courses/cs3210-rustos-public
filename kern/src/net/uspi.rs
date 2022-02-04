@@ -15,7 +15,7 @@ use smoltcp::wire::EthernetAddress;
 use crate::mutex::Mutex;
 use crate::net::Frame;
 use crate::traps::irq::IrqHandlerRegistry;
-use crate::ALLOCATOR;
+use crate::{ALLOCATOR, FIQ, GLOBAL_IRQ};
 
 const DEBUG_USPI: bool = false;
 pub macro uspi_trace {
@@ -165,8 +165,8 @@ unsafe fn layout(size: usize) -> Layout {
 fn malloc(size: u32) -> *mut c_void {
     // Lab 5 2.B
     unsafe {
-        ALLOCATOR.alloc(Layout::from_size_align_unchecked(size as usize, 16)) as *mut c_void
-    }
+    ALLOCATOR.alloc(Layout::from_size_align_unchecked(size as usize, 16)) as *mut c_void
+}
 }
 
 #[no_mangle]
@@ -201,6 +201,10 @@ pub fn usDelay(nMicroSeconds: u32) {
     spin_sleep(Duration::from_micros(nMicroSeconds as u64));
 }
 
+// Wrapper to indicate that we can safely send c_void across threads.
+struct CVoidWrapper(*mut c_void);
+unsafe impl Send for CVoidWrapper {}
+
 /// Registers `pHandler` to the kernel's IRQ handler registry.
 /// When the next time the kernel receives `nIRQ` signal, `pHandler` handler
 /// function should be invoked with `pParam`.
@@ -210,7 +214,27 @@ pub fn usDelay(nMicroSeconds: u32) {
 #[no_mangle]
 pub unsafe fn ConnectInterrupt(nIRQ: u32, pHandler: TInterruptHandler, pParam: *mut c_void) {
     // Lab 5 2.B
-    unimplemented!("ConnectInterrupt")
+    let pParam = CVoidWrapper{ 0: pParam };
+    match Interrupt::from(nIRQ as usize) {
+        Interrupt::Timer3 => {
+            Controller::new().enable(Interrupt::Timer3);
+            GLOBAL_IRQ.register(Interrupt::Timer3, Box::new(move |_| {
+                if let Some(handler) = pHandler {
+                    handler(pParam.0);
+                }
+            }));
+        }
+        Interrupt::Usb => {
+            Controller::new().enable_fiq(Interrupt::Usb);
+            FIQ.register((), Box::new(move |_| {
+                if let Some(handler) = pHandler {
+                    handler(pParam.0);
+                }
+            }));
+        },
+        _ => panic!("nIRQ {} is not one of Interrupt::Usb({}) or Interrupt::Timer3({})",
+                nIRQ, Interrupt::Usb as usize, Interrupt::Timer3 as usize),
+    }
 }
 
 /// Writes a log message from USPi using `uspi_trace!` macro.

@@ -97,6 +97,8 @@ impl GlobalScheduler {
     /// preemptive scheduling. This method should not return under normal
     /// conditions.
     pub fn start(&self) -> ! {
+        aarch64::enable_fiq_interrupt();
+
         // Start the first process and get the trap frame.
         let mut tf = TrapFrame::default();
         self.critical(|scheduler| scheduler.switch_to(&mut tf));
