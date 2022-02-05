@@ -75,6 +75,7 @@ mod inner {
         /// The caller should assure that this function is called only once
         /// during the lifetime of the kernel.
         pub unsafe fn initialize() -> Self {
+            info!("hi");
             assert!(USPiInitialize() != 0);
             USPi(())
         }

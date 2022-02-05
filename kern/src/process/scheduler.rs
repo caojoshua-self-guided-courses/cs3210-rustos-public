@@ -152,6 +152,9 @@ impl GlobalScheduler {
     /// Registers a timer handler with `Usb::start_kernel_timer` which will
     /// invoke `poll_ethernet` after 1 second.
     pub fn initialize_global_timer_interrupt(&self) {
+        let curr = Instant::from_millis(current_time().as_millis() as i64);
+        let delay = ETHERNET.poll_delay(curr);
+        USB.start_kernel_timer(delay, Some(poll_ethernet));
     }
 
     /// Initializes the per-core local timer interrupt with `pi::local_interrupt`.
@@ -197,8 +200,10 @@ impl GlobalScheduler {
 /// Poll the ethernet driver and re-register a timer handler using
 /// `Usb::start_kernel_timer`.
 extern "C" fn poll_ethernet(_: TKernelTimerHandle, _: *mut c_void, _: *mut c_void) {
-    // Lab 5 2.B
-    unimplemented!("poll_ethernet")
+    let curr = Instant::from_millis(current_time().as_millis() as i64);
+    ETHERNET.poll(curr);
+    let delay = ETHERNET.poll_delay(curr);
+    USB.start_kernel_timer(delay, Some(poll_ethernet));
 }
 
 /// Internal scheduler struct which is not thread-safe.

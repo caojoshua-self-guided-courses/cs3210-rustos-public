@@ -137,8 +137,16 @@ impl phy::TxToken for TxToken {
 
 /// Creates and returns a new ethernet interface using `UsbEthernet` struct.
 pub fn create_interface() -> EthernetInterface<UsbEthernet> {
-    // Lab 5 2.B
-    unimplemented!("create_interface")
+    let ip_addrs = vec![
+        IpCidr::new(IpAddress::v4(169, 254, 32, 10), 16),
+        IpCidr::new(IpAddress::v4(127, 0, 0, 1), 16),
+    ];
+
+    EthernetInterfaceBuilder::new(UsbEthernet{})
+        .ethernet_addr(USB.get_eth_addr())
+        .neighbor_cache(NeighborCache::new(BTreeMap::new()))
+        .ip_addrs(ip_addrs)
+        .finalize()
 }
 
 const PORT_MAP_SIZE: usize = 65536 / 64;
@@ -155,41 +163,71 @@ pub struct EthernetDriver {
 impl EthernetDriver {
     /// Creates a fresh ethernet driver.
     fn new() -> EthernetDriver {
-        // Lab 5 2.B
-        unimplemented!("new")
+        EthernetDriver{
+            socket_set: SocketSet::new(Vec::new()),
+            port_map: [0; PORT_MAP_SIZE],
+            ethernet: create_interface(),
+        }
     }
 
     /// Polls the ethernet interface.
     /// See also `smoltcp::iface::EthernetInterface::poll()`.
     fn poll(&mut self, timestamp: Instant) {
-        // Lab 5 2.B
-        unimplemented!("poll")
+        self.ethernet.poll(&mut self.socket_set, timestamp);
     }
 
     /// Returns an advisory wait time to call `poll()` the next time.
     /// See also `smoltcp::iface::EthernetInterface::poll_delay()`.
     fn poll_delay(&mut self, timestamp: Instant) -> Duration {
-        // Lab 5 2.B
-        unimplemented!("poll_delay")
+        Duration::from_millis(self.ethernet.poll_delay(&self.socket_set, timestamp).unwrap().millis())
+    }
+
+    fn get_idx_and_bit(port: u16) -> (usize, u64) {
+        let idx = port as usize / 64;
+        let bit = 0b1 << (port % 64);
+        (idx, bit)
     }
 
     /// Marks a port as used. Returns `Some(port)` on success, `None` on failure.
     pub fn mark_port(&mut self, port: u16) -> Option<u16> {
-        // Lab 5 2.B
-        unimplemented!("mark_port")
+        let (idx, bit) = EthernetDriver::get_idx_and_bit(port);
+        match self.port_map[idx] | bit {
+            0 => {
+                self.port_map[idx] |= bit;
+                Some(port)
+            },
+            _ => None,
+        }
     }
 
     /// Clears used bit of a port. Returns `Some(port)` on success, `None` on failure.
     pub fn erase_port(&mut self, port: u16) -> Option<u16> {
-        // Lab 5 2.B
-        unimplemented!("erase_port")
+        let (idx, bit) = EthernetDriver::get_idx_and_bit(port);
+        match self.port_map[idx] | bit {
+            0 => None,
+            _ => {
+                self.port_map[idx] &= !bit;
+                Some(port)
+            },
+        }
     }
 
     /// Returns the first open port between the ephemeral port range 49152 ~ 65535.
     /// Note that this function does not mark the returned port.
     pub fn get_ephemeral_port(&mut self) -> Option<u16> {
-        // Lab 5 2.B
-        unimplemented!("get_ephemeral_port")
+        let mut idx = 49152 / 64; // 768, with no remainder
+        let remaining_idx = (65535 + 1) / 64 - idx; // 1024, with no remainder
+
+        for _ in 0..remaining_idx {
+            for i in 0..64 {
+                if self.port_map[idx] | 0b1 << i == 0 {
+                    return Some((idx * 64 + i) as u16);
+                }
+            }
+            idx += 1;
+        }
+
+        None
     }
 
     /// Finds a socket with a `SocketHandle`.
@@ -231,8 +269,19 @@ impl GlobalEthernetDriver {
     }
 
     pub fn poll(&self, timestamp: Instant) {
-        // Lab 5 2.B
-        unimplemented!("poll")
+        // Only poll on core 0 in Timer3 context.
+        // No idea how we determine if we are in Timer3 context, but the course says to check the
+        // preemptive counter, and someone on github just checks its greater than 0. I'm guessing
+        // in Timer3 context, we always lock a mutex, but I would think its possible to have
+        // preemptive counter > 0 but not be in Timer3 context. IDK, course does not give enough
+        // info here.
+        if aarch64::affinity() == 0 && crate::percore::get_preemptive_counter() > 0 {
+            self.0
+                .lock()
+                .as_mut()
+                .expect("Uninitialized EthernetDriver")
+                .poll(timestamp)
+        }
     }
 
     pub fn poll_delay(&self, timestamp: Instant) -> Duration {
