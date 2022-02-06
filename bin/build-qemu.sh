@@ -6,6 +6,8 @@ TOP=$(git rev-parse --show-toplevel)
 BIN=$TOP/bin
 EXT=$TOP/ext
 # Could probably just check out head if this does not work.
+# version of QEMU than the course, and the ID got updated.
+git apply $BIN/qemu.patch
 VER=a3607def89f9cd68c1b994e1030527df33aa91d0
 
 cd $EXT
@@ -20,6 +22,6 @@ if [[ ! -e qemu-system-aarch64 ]]; then
 
     mkdir -p build
     cd build
-    ../configure --disable-capstone --target-list=aarch64-softmmu
+    ../configure --disable-capstone --target-list=aarch64-softmmu --disable-werror
     make -j$($BIN/ncpus)
 fi

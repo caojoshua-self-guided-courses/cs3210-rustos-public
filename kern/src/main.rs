@@ -66,6 +66,8 @@ unsafe fn kmain() -> ! {
         "bss  beg: {:016x}, end: {:016x}",
         &__bss_beg as *const _ as u64, &__bss_end as *const _ as u64
     );
+    trace!("trace");
+    info!("info");
 
     ALLOCATOR.initialize();
     FILESYSTEM.initialize();
@@ -77,9 +79,9 @@ unsafe fn kmain() -> ! {
     USB.initialize();
     info!("done usb");
     ETHERNET.initialize();
-    // assert!(USB.is_eth_available());
-    // while(!USB.is_eth_link_up()) {}
-    // aarch64::disable_fiq_interrupt();
+    assert!(USB.is_eth_available());
+    while(!USB.is_eth_link_up()) {}
+    aarch64::disable_fiq_interrupt();
     info!("done");
 
     init::initialize_app_cores();

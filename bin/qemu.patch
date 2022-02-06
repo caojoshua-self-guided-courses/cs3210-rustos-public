@@ -1,0 +1,23 @@
+diff --git a/hw/usb/hcd-dwc2.c b/hw/usb/hcd-dwc2.c
+index e1d96acf7e..fa051f53fb 100644
+--- a/hw/usb/hcd-dwc2.c
++++ b/hw/usb/hcd-dwc2.c
+@@ -368,8 +368,8 @@ babble:
+             do_intr = true;
+         } else {
+             intr |= HCINTMSK_CHHLTD;
+-            done = true;
+         }
++        done = true;
+     }
+ 
+     usb_packet_cleanup(&p->packet);
+@@ -1259,7 +1259,7 @@ static void dwc2_reset_enter(Object *obj, ResetType type)
+     s->gpvndctl = 0;
+     s->ggpio = 0;
+     s->guid = 0;
+-    s->gsnpsid = 0x4f54294a;
++    s->gsnpsid = 0x4F54280A;
+     s->ghwcfg1 = 0;
+     s->ghwcfg2 = (8 << GHWCFG2_DEV_TOKEN_Q_DEPTH_SHIFT) |
+                  (4 << GHWCFG2_HOST_PERIO_TX_Q_DEPTH_SHIFT) |

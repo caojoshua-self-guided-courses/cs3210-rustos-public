@@ -17,7 +17,7 @@ use crate::net::Frame;
 use crate::traps::irq::IrqHandlerRegistry;
 use crate::{ALLOCATOR, FIQ, GLOBAL_IRQ};
 
-const DEBUG_USPI: bool = false;
+const DEBUG_USPI: bool = true;
 pub macro uspi_trace {
     () => (if DEBUG_USPI { trace!("\n") } ),
     ($fmt:expr) => (if DEBUG_USPI { trace!(concat!($fmt, "\n")) }),
@@ -243,7 +243,7 @@ pub unsafe fn ConnectInterrupt(nIRQ: u32, pHandler: TInterruptHandler, pParam: *
 pub unsafe fn DoLogWrite(_pSource: *const u8, _Severity: u32, pMessage: *const u8) {
     // Lab 5 2.B
     match str_from_cstr(pMessage) {
-        Ok(str) => uspi_trace!("{}", str),
+        Ok(str) => trace!("{}", str),
         Err(err) => uspi_trace!("Error parsing uspi log message: {}", err),
     }
 }
