@@ -1,5 +1,5 @@
 # GATECH CS3210 Operating Systems
-Fork of [Georgia Tech CS3210 Operating Systems](https://github.com/sslab-gatech/cs3210-rustos-public). I am following the 2020 Spring course [[website](https://tc.gts3.org/cs3210/2020/spring/index.html). I was initially following [Stanford CS140E](https://cs140e.sergio.bz/), but found that this course is an extension of the former with more content and a newer rust toolchain. I have also used the [CS140E gitter](https://gitter.im/cs140e-rust/Lobby?source=orgpage) as a resource.
+Fork of [Georgia Tech CS3210 Operating Systems](https://github.com/sslab-gatech/cs3210-rustos-public). I am following the 2020 Spring course [website](https://tc.gts3.org/cs3210/2020/spring/index.html). I was initially following [Stanford CS140E](https://cs140e.sergio.bz/), but found that this course is an extension of the former with more content and a newer rust toolchain. I have also used the [CS140E gitter](https://gitter.im/cs140e-rust/Lobby?source=orgpage) as a resource.
 
 Motivations for taking this course:
 * learn Rust, and this seemed like a decent place to start
