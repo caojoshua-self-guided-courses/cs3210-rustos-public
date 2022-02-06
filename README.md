@@ -8,6 +8,11 @@ Motivations for taking this course:
 
 I provide instructions on how to build/run the kernel below, although much of it is repeated from the course. Disclaimer: I had a lot of issues with the build/run scripts in this course. I modified them such that they work for me, but they may break on other machines. I am working on this course from both Fedora and Arch Linux machines, and have not tested on anything else.
 
+## Status
+I am done working on this course. I completed labs 0-4, and multicore in lab 5. I did not complete the TCP section in lab 5, since I could not get the external USB library working. It would take too much time to debug, and I figured that last section was not so interesting anyway. See [usb-issues.md](https://github.com/caojoshua-self-guided-courses/cs3210-rustos-public/docs/usb-issues.md) for more details.
+
+I summarize my final thoughts in [final-thoughts.md](https://github.com/caojoshua-self-guided-courses/cs3210-rustos-public/docs/final-thoughts.md)
+
 ## Hardware
 My hardware is the same as those listed in the Assignment 1. Specifics:
 * Raspberry Pi 3 Model B
@@ -59,7 +64,7 @@ I had a lot of issues building dependencies due to a lack of `Cargo.lock` files 
 
 ## Running on bare metal
 
-The kernel can either be installed directly onto the Pi, or sent to the Pi and loaded by the bootloader. Due to issues with the SD card, it is recommended to skip this section and run the kernel on QEMU.
+The kernel can either be installed directly onto the Pi, or sent to the Pi and loaded by the bootloader. Due to issues with the SD card, it is recommended to skip this section and run the kernel on QEMU. UPDATE: bare metal is broken since [this commit](https://github.com/caojoshua-self-guided-courses/cs3210-rustos-public/commit/43ccd5fd26dbc4fa82e762fb2d4b677798c7d162). Nothing shows when connecting over screen, and I'm not sure why.
 
 ### Running the kernel directly from the pi
 Mount your SD card. Then run:

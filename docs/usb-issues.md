@@ -1,0 +1,8 @@
+# USB Issues
+
+The second half of lab5 is TCP networking. Part of that is using the [USPi](https://github.com/rsta2/uspi) C bare metal USB library. I was unable to complete this portion of the course, as I could not get USPi working on QEMU or bare metal. I've tried debugging in the [ethernet branch](https://github.com/caojoshua-self-guided-courses/cs3210-rustos-public/tree/ethernet), but decided to not spend any more time. I've already spent a day on it, and I'm unsure how much more time would be required. It's also the last portion of the course, and it is honestly not that interesting since it's is just integrating an external library.
+
+USPi is actually based on the C++ library circle. Circle has [documentation on limitatons on working with QEMU](https://github.com/rsta2/circle/blob/master/doc/qemu.txt). The intial problem on QEMU was that there was an unknown vendor ID 0x4F54280A. This was solved by patching QEMU with [qemu.patch](https://github.com/caojoshua-self-guided-courses/cs3210-rustos-public/blob/ethernet/bin/qemu.patch)([original patch from here](https://github.com/smuehlst/qemu
+)). The next issue is that `Usb::is_eth_available()` never returns true, which I never solved. Part of circle's documentation involves building circle with qemu-specific flags. These flags do not exist in USPi, so I think USPi could never work with QEMU.
+
+I also realized that bare metal stopped working since [this commit](https://github.com/caojoshua-self-guided-courses/cs3210-rustos-public/commit/43ccd5fd26dbc4fa82e762fb2d4b677798c7d162). I spent some time debugging, but did not get anywhere. Either way, even if I got this working, I would still have to live with SD card issues on bare metal.
